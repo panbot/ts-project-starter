@@ -1,0 +1,33 @@
+{
+  "name": "ts-project-starter",
+  "version": "0.0.1",
+  "description": "modular typescript project starter",
+  "main": "src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "typescript",
+    "aop",
+    "starter"
+  ],
+  "author": "Botao Pan",
+  "license": "ISC",
+  "dependencies": {
+    "fastify": "^2.12.1",
+    "fastify-cors": "^3.0.2",
+    "ioredis": "^4.16.0",
+    "mongodb": "^3.5.4",
+    "mysql": "^2.18.1",
+    "reflect-metadata": "^0.1.13",
+    "typedi": "^0.8.0",
+    "typeorm": "^0.2.24"
+  },
+  "devDependencies": {
+    "@types/ioredis": "^4.14.8",
+    "@types/node": "^12.12.29",
+    "nodemon": "^2.0.2",
+    "rimraf": "^3.0.2",
+    "typescript": "^3.8.3"
+  }
+}
