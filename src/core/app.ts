@@ -71,18 +71,22 @@ export class App {
             },
         );
 
+        fastify.register(require('fastify-cors'), {
+            maxAge: 3600,
+        });
+
         for (let Module of this.Modules) {
             let moduleOptions = ModuleService.registry.get(Module);
             if (moduleOptions === undefined) throw new Error(
                 `"${Module.name}" is loaded but not registered, ` +
-                `is it missing the @ApModule() decoration?`
+                `is it missing the @Module() decoration?`
             );
 
             for (let Controller of moduleOptions.controllers) {
                 let routes = ApRouteService.registry.get(Controller);
                 if (routes === undefined) throw new Error(
                     `no routes found for "${Controller.name}", ` +
-                    `is it missing the @ApRoute() decoration?`
+                    `is it missing the @Route() decoration?`
                 );
 
                 for (let options of routes) {

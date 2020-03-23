@@ -26,7 +26,7 @@ export default function (secret: string, Error: new (msg: string) => any) {
 
             case 2:
             payload = parts[0];
-            mySig = sign(Buffer.from(parts[0]));
+            mySig = sign(Buffer.from(parts[0], 'base64'));
             theirSig = parts[1];
             break;
 

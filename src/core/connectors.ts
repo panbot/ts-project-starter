@@ -3,7 +3,7 @@ import JWT from "../lib/jwt";
 import CreateRun, { Runnable } from '../lib/runnable';
 import Container, { ObjectType } from "typedi";
 import { ParameterToken } from "./parameter";
-import { ApAccessDeniedError } from "./error";
+import { AccessDeniedError } from "./error";
 import { AgeCache } from "../lib/age-cache";
 
 const instantiate = <T>(t: ObjectType<T>) => Container.get(t);
@@ -36,4 +36,4 @@ export function RunnerAgeCache(Runner: ObjectType<Runnable>, ttl: number) {
 }
 
 const parameters = Container.get(ParameterToken);
-export const jwt = JWT(parameters.secret, ApAccessDeniedError);
+export const jwt = JWT(parameters.secret, AccessDeniedError);

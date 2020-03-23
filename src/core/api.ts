@@ -116,13 +116,13 @@ export class ApiService {
         let map = args.get(Api);
         if (map === undefined) throw new Error(
             `no args registered for "${Api.name}", ` +
-            `does it have any @ApApiArg() decorations?`
+            `does it have any @ApiArg() decoration?`
         );
 
         const options = map.get(propertyName);
         if (options === undefined) throw new Error(
             `arg options not found for "${Api.name}.${propertyName}", ` +
-            `is it missing the @ApApiArg() decoration?`
+            `is it missing the @ApiArg() decoration?`
         );
 
         this.validateByOptions(propertyName, value, options);
@@ -137,7 +137,8 @@ export class ApiService {
         let ret: any = {};
 
         for (let [ name, options ] of map) {
-            ret[name] = this.validateByOptions(name, values[name], options);
+            let [ found, value ] = this.validateByOptions(name, values[name], options);
+            if (found) ret[name] = value;
         }
 
         return ret;
@@ -149,7 +150,7 @@ export class ApiService {
         options: ApiArgOptions,
     ) {
         if (value == null) {
-            if (options.optional) return;
+            if (options.optional) return [ false, null ];
             throw new ArgumentError(`"${propertyName}" is required`);
         }
 
@@ -166,7 +167,7 @@ export class ApiService {
             `invalid value of "${propertyName}"`
         );
 
-        return parsed;
+        return [ true, parsed ];
     }
 
     static registry = new Map<ApiType, ApiOptions>();

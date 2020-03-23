@@ -1,16 +1,22 @@
 import { Route, RouteContext } from "../core/route";
 import { App } from "../core/app";
 import { Inject, Service } from "typedi";
-import { ApiArg } from "../core/api";
 import { Roles } from "../core/auth";
+
+export const API_ENTRY_ROUTE = '/api/:module/:api';
 
 @Service()
 export class ApiController {
 
-    @Inject(_ => ApiArg)
+    @Inject(_ => App)
     private app: App;
 
-    @Route('POST', '/ap/api/:module/:api', Roles.Anonymous, 'application/json')
+    @Route(
+        'POST',
+        API_ENTRY_ROUTE,
+        Roles.Anonymous,
+        'application/json',
+    )
     api({
         params: { module, api },
         body,

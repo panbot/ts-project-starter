@@ -23,7 +23,7 @@ export class RedisService implements RunArgFactory<IORedis.Redis> {
     async run<T>(runner: (redis: IORedis.Redis) => Promise<T>) {
         let redis: IORedis.Redis | undefined;
         try {
-            return runner(redis = this.connect());
+            return await runner(redis = this.connect());
         } catch (e) {
             throw e;
         } finally {

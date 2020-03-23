@@ -81,7 +81,7 @@ export class ApRouteService {
                 request: FastifyRequest,
                 reply: FastifyReply<ServerResponse>,
             ) => {
-                reply.type(contentType);
+                reply.type(contentType + '; charset=utf-8');
 
                 try {
                     let userContext = this.authService.extractUserContext(request.headers['authorization']);
@@ -117,7 +117,7 @@ export class ApRouteService {
                 request: FastifyRequest,
                 reply: FastifyReply<ServerResponse>,
             ) => {
-                reply.type(contentType);
+                reply.type(contentType + '; charset=utf-8');
 
                 try {
                     let userContext = this.authService.extractUserContext(request.headers['authorization']);
@@ -137,9 +137,10 @@ export class ApRouteService {
                         reply.send(text);
                     }
                 } catch (e) {
+                    console.error(e);
                     if (!reply.sent) {
                         reply.code(e.httpCode || 500);
-                        reply.send(e.clientMessage || `server error`);
+                        reply.send(e.message || `server error`);
                     }
 
                     if (!(e.httpCode < 500)) {

@@ -3,10 +3,10 @@ import { InjectParam } from "./parameter";
 import { jwt } from "./connectors";
 
 export enum Roles {
-    Anonymous = 1,
-    Authenticated = 2,
-    Game = 4,
-    CMS = 8,
+    Anonymous = 0,
+    Authenticated = 1,
+    Game = 2,
+    CMS = 4,
     Super = 1023,
 }
 
@@ -24,7 +24,7 @@ export class AuthService {
     };
 
     assertRoles(required: Roles, provided: Roles) {
-        if (!(required & provided)) throw new AccessDeniedError(
+        if (required && !(required & provided)) throw new AccessDeniedError(
             `insufficient permissions`
         );
     }
@@ -47,6 +47,7 @@ export class AuthService {
             return this.dev[payload];
 
             case 'uid':
+            if (!this.dev) throw new ArgumentError(`unknown scheme "uid"`);
             return {
                 uid: payload,
                 roles: Roles.Authenticated | Roles.Game,
