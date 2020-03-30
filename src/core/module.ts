@@ -37,7 +37,7 @@ export class ModuleService {
         for (let [ Module, options ] of registry) {
             let map = new Map<string, ApiType>();
             for (let Api of options.apis) {
-                const apiOption = ApiService.registry.get(Api);
+                const apiOption = ApiService.apis.get(Api);
                 if (apiOption === undefined) throw new Error(
                     `${Api.name} is not registered, is it missing the @Api() decoration?`
                 );

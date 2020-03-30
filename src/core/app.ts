@@ -47,13 +47,14 @@ export class App {
     ) {
         const Api = this.moduleService.getApi(module, api);
 
-        const { options } = this.apiService.get(Api);
-        this.authService.assertRoles(options!.roles, userContext.roles);
+        const { roles, userContextProperty } = this.apiService.get(Api).options;
+        this.authService.assertRoles(roles, userContext.roles);
 
         let runnable = Object.create(Container.get(Api));
-        runnable.userContext = userContext;
-
         Object.assign(runnable, this.apiService.validateAll(Api, args));
+        if (userContextProperty !== undefined) {
+            runnable[userContextProperty] = userContext;
+        }
 
         return run(runnable);
     }

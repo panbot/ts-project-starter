@@ -10,6 +10,7 @@ export type ApiOptions = {
     doc: string,
     name: string,
     roles: Roles,
+    userContextProperty?: string,
 }
 
 export type ApiArgOptions = {
@@ -29,7 +30,7 @@ export function Api(
     },
 ) {
     return function (Api: ApiType) {
-        ApiService.registry.set(Api, {
+        ApiService.apis.set(Api, {
             doc,
             name: name || Api.name.replace(/Api$/i, ''),
             roles: roles || Roles.Anonymous,
@@ -51,33 +52,22 @@ export function ApiArg(options: {
     parser?: (v: unknown) => any,
     validator?: (v: unknown) => boolean,
 } | string, optional = false) {
+
     let doc: string;
+    let parser: ((v: unknown) => any) | undefined;
+    let validator: ((v: unknown) => boolean) | undefined;
 
     if (typeof options == 'string') {
         doc = options;
     } else {
         doc = options.doc;
         optional = !!options.optional;
+        parser = options.parser;
+        validator = options.validator;
     }
 
     return function (proto: InstanceType<ApiType>, propertyName: string) {
-        const ApiType = proto.constructor as ApiType;
-
-        const { args, validatables } = ApiService;
-
-        let map = args.get(ApiType);
-        if (map === undefined) {
-            map = new Map<string, ApiArgOptions>();
-            args.set(ApiType, map);
-        }
-
-        let parser: ((v: unknown) => any) | undefined;
-        let validator: ((v: unknown) => boolean) | undefined;
-
-        if (typeof options == 'object') {
-            parser = options.parser;
-            validator = options.validator;
-        }
+        const { getOrInitArgMapFor, validatables } = ApiService;
 
         if (!parser && !validator) {
             const Type = Reflect.getMetadata('design:type', proto, propertyName);
@@ -91,7 +81,7 @@ export function ApiArg(options: {
             validator = validatable.validator;
         }
 
-        map.set(propertyName, {
+        getOrInitArgMapFor(proto).set(propertyName, {
             doc,
             optional,
             parser: parser || ((v: any) => v),
@@ -100,12 +90,30 @@ export function ApiArg(options: {
     }
 }
 
+export function ApiUserContextArg() {
+    return function (proto: InstanceType<ApiType>, propertyName: string) {
+        setTimeout(
+            () =>
+                ApiService.apis.get(
+                    proto.constructor as ApiType
+                )!.userContextProperty = propertyName
+            ,
+            0
+        )
+    }
+}
+
 @Service()
 export class ApiService {
 
     get(Api: ApiType) {
+        let options = ApiService.apis.get(Api);
+        if (options === undefined) throw new Error(
+            `${Api.name} not found`
+        );
+
         return {
-            options: ApiService.registry.get(Api),
+            options,
             args: ApiService.args.get(Api),
         }
     }
@@ -170,8 +178,19 @@ export class ApiService {
         return [ true, parsed ];
     }
 
-    static registry = new Map<ApiType, ApiOptions>();
+    static apis = new Map<ApiType, ApiOptions>();
     static args = new Map<ApiType, Map<string, ApiArgOptions>>();
+
+    static getOrInitArgMapFor(proto: InstanceType<ApiType>) {
+        const { args } = ApiService;
+        const ApiType = proto.constructor as ApiType;
+        let map = args.get(ApiType);
+        if (map === undefined) {
+            map = new Map<string, ApiArgOptions>();
+            args.set(ApiType, map);
+        }
+        return map;
+    }
 
     static validatables = (() => {
         let map = new Map<any, {
