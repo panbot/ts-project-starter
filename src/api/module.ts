@@ -7,6 +7,6 @@ import { ApiController } from "./controller";
         ApiController,
     ]
 })
-export class ApiEntryModule {
+export class ApiModule {
 
 }

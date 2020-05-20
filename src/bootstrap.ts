@@ -12,7 +12,7 @@ Container.set(ParameterToken, parameters);
 import { App } from "./core/app";
 import { ModuleType } from "./core/module";
 
-import { ApiEntryModule } from "./api-entry/module";
+import { ApiModule } from "./api/module";
 // import { GoldRushModule } from "./gold-rush/module";
 // import { MongoCmsModule } from "./mongo-cms/module";
 // import { AlipayModule } from "./alipay/module";
@@ -20,7 +20,7 @@ import { ApiEntryModule } from "./api-entry/module";
 
 let modules: ModuleType[] = [
     // modules goes in here
-    ApiEntryModule,
+    ApiModule,
 ];
 
 if (parameters.dev) {

@@ -1,6 +1,6 @@
 import { EntityManager, getConnection, QueryRunner, ConnectionOptions, createConnection } from 'typeorm';
 import { RunArgFactory, Runnable } from "../lib/runnable";
-import { ArgumentError, ArgumentJsonError } from './error';
+import { ArgumentJsonError, ArgumentError } from '../core/error';
 
 export class MysqlService
 implements RunArgFactory<EntityManager> {
@@ -103,7 +103,7 @@ implements RunArgFactory<TransactionalEntityManager> {
                 } catch (e) {
                     await qr.rollbackTransaction();
                     if (
-                        e instanceof ApRaceConditionError &&
+                        e instanceof MysqlRaceCondition &&
                         ++count < retries
                     ) continue;
 
@@ -122,7 +122,7 @@ implements RunArgFactory<TransactionalEntityManager> {
     }
 }
 
-export class ApRaceConditionError extends ArgumentError {
+export class MysqlRaceCondition extends ArgumentError {
     constructor(msg: string) {
         super(msg, 419);
     }

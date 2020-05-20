@@ -1,4 +1,4 @@
-import { Service } from "typedi";
+import { Service, Token } from "typedi";
 import { Roles } from "./auth";
 import { Runnable } from "../lib/runnable";
 import { ArgumentError } from "./error";
@@ -10,23 +10,26 @@ export type ApiOptions = {
     doc: string,
     name: string,
     roles: Roles,
+    cochin?: string,
     userContextProperty?: string,
 }
 
 export type ApiArgOptions = {
     doc: string,
     optional: boolean,
-    parser: (v: unknown) => any,
-    validator: (v: unknown) => boolean,
+    type: any,
+    parser: (v: unknown, api?: InstanceType<ApiType>) => any,
+    validator: (v: unknown, api?: InstanceType<ApiType>) => boolean,
 }
 
 export function Api(
     {
-        doc, name, roles
+        doc, name, roles, cochin
     }: {
         doc: string,
         name?: string,
         roles?: Roles,
+        cochin?: string,
     },
 ) {
     return function (Api: ApiType) {
@@ -34,12 +37,9 @@ export function Api(
             doc,
             name: name || Api.name.replace(/Api$/i, ''),
             roles: roles || Roles.Anonymous,
+            cochin,
         });
     }
-}
-
-export function CmsApi(doc: string) {
-    return Api({ doc, roles: Roles.CMS })
 }
 
 export function AuthenticatedApi(doc: string) {
@@ -49,13 +49,13 @@ export function AuthenticatedApi(doc: string) {
 export function ApiArg(options: {
     doc: string,
     optional?: boolean,
-    parser?: (v: unknown) => any,
-    validator?: (v: unknown) => boolean,
+    parser?: (v: unknown, api?: InstanceType<ApiType>) => any,
+    validator?: (v: unknown, api?: InstanceType<ApiType>) => boolean,
 } | string, optional = false) {
 
     let doc: string;
-    let parser: ((v: unknown) => any) | undefined;
-    let validator: ((v: unknown) => boolean) | undefined;
+    let parser: ((v: unknown, api: InstanceType<ApiType>) => any) | undefined;
+    let validator: ((v: unknown, api: InstanceType<ApiType>) => boolean) | undefined;
 
     if (typeof options == 'string') {
         doc = options;
@@ -68,10 +68,9 @@ export function ApiArg(options: {
 
     return function (proto: InstanceType<ApiType>, propertyName: string) {
         const { getOrInitArgMapFor, validatables } = ApiService;
+        const Type = Reflect.getMetadata('design:type', proto, propertyName);
 
         if (!parser && !validator) {
-            const Type = Reflect.getMetadata('design:type', proto, propertyName);
-
             const validatable = validatables.get(Type);
             if (
                 validatable === undefined
@@ -84,6 +83,7 @@ export function ApiArg(options: {
         getOrInitArgMapFor(proto).set(propertyName, {
             doc,
             optional,
+            type: Type,
             parser: parser || ((v: any) => v),
             validator: validator || ((v: any) => true),
         });
@@ -118,7 +118,12 @@ export class ApiService {
         }
     }
 
-    validate(Api: ApiType, propertyName: string, value: unknown) {
+    async validate(
+        Api: ApiType,
+        api: InstanceType<ApiType>,
+        propertyName: string,
+        value: unknown,
+    ) {
         const { args } = ApiService;
 
         let map = args.get(Api);
@@ -133,10 +138,10 @@ export class ApiService {
             `is it missing the @ApiArg() decoration?`
         );
 
-        this.validateByOptions(propertyName, value, options);
+        await this.validateByOptions(api, propertyName, value, options);
     }
 
-    validateAll(Api: ApiType, values: Object) {
+    async validateAll(Api: ApiType, api: InstanceType<ApiType>, values: Object) {
         const { args } = ApiService;
 
         let map = args.get(Api);
@@ -145,14 +150,20 @@ export class ApiService {
         let ret: any = {};
 
         for (let [ name, options ] of map) {
-            let [ found, value ] = this.validateByOptions(name, values[name], options);
+            let [ found, value ] = await this.validateByOptions(
+                api,
+                name,
+                values[name],
+                options,
+            );
             if (found) ret[name] = value;
         }
 
         return ret;
     }
 
-    private validateByOptions(
+    private async validateByOptions(
+        api: InstanceType<ApiType>,
         propertyName: string,
         value: unknown,
         options: ApiArgOptions,
@@ -164,14 +175,14 @@ export class ApiService {
 
         let parsed: any;
         try {
-            parsed = options.parser(value);
+            parsed = await options.parser(value, api);
         } catch (e) {
             throw new ArgumentError(
                 `invalid value of "${propertyName}": ${e.message}`
             );
         }
 
-        if (!options.validator(parsed)) throw new ArgumentError(
+        if (! await options.validator(parsed, api)) throw new ArgumentError(
             `invalid value of "${propertyName}"`
         );
 
@@ -192,45 +203,53 @@ export class ApiService {
         return map;
     }
 
-    static validatables = (() => {
-        let map = new Map<any, {
-            parser: (v: unknown) => any,
-            validator: (v: unknown) => boolean,
-        }>();
-
-        map.set(String, {
-            parser: v => v,
-            validator: v => typeof v == "string",
-        });
-        map.set(Number, {
-            parser: v => v,
-            validator: v => typeof v == "number",
-        });
-        map.set(Boolean, {
-            parser: v => v,
-            validator: v => typeof v == "boolean",
-        });
-        map.set(Date, {
-            parser: v => {
-                switch (typeof v) {
-                    case "number":
-                    case "string": return new Date(v);
-                }
-
-                if (v instanceof Date) return new Date(v);
-
-                throw new Error(`invalid date`);
-            },
-            validator: (d: Date) => d.toString() != 'Invalid Date',
-        });
-        map.set(URL, {
-            parser: v => {
-                if (typeof v == 'string') return new URL(v);
-                else throw new ArgumentError(`invalid url`);
-            },
-            validator: _ => true,
-        });
-
-        return map;
-    })();
+    static validatables = new Map<any, {
+        parser?: (v: unknown) => any,
+        validator?: (v: unknown) => boolean,
+    }>();
 }
+
+export function ApiArgValidatable(options: {
+    parser?: (v: unknown, api?: InstanceType<ApiType>) => any,
+    validator?: (v: unknown, api?: InstanceType<ApiType>) => boolean,
+}) {
+    return function (Type: any) {
+        ApiService.validatables.set(
+            Type,
+            options,
+        )
+    }
+}
+
+ApiArgValidatable({
+    validator: v => typeof v == "string",
+})(String);
+
+ApiArgValidatable({
+    validator: v => typeof v == "number",
+})(Number);
+
+ApiArgValidatable({
+    validator: v => typeof v == "boolean",
+})(Boolean);
+
+ApiArgValidatable({
+    parser: v => {
+        switch (typeof v) {
+            case "number":
+            case "string": return new Date(v);
+        }
+
+        if (v instanceof Date) return new Date(v);
+
+        throw new Error(`invalid date`);
+    },
+    validator: (d: Date) => d.toString() != 'Invalid Date',
+})(Date);
+
+ApiArgValidatable({
+    parser: v => {
+        if (typeof v == 'string') return new URL(v);
+        else throw new ArgumentError(`invalid url`);
+    },
+})(URL);

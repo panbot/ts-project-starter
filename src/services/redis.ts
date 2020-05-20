@@ -1,6 +1,6 @@
 import { RunArgFactory } from "../lib/runnable";
 import * as IORedis from 'ioredis';
-import { InjectParam } from "./parameter";
+import { InjectParam } from "../core/parameter";
 
 export class RedisService implements RunArgFactory<IORedis.Redis> {
 
@@ -13,7 +13,7 @@ export class RedisService implements RunArgFactory<IORedis.Redis> {
         const config = this.config;
         let redis = new IORedis(config.url, {
             lazyConnect: true, // 如果未发送任何请求就关闭链接会报错
-            retryStrategy: times => times > 5 ? false : 400,
+            retryStrategy: times => times > 5 ? undefined : 400,
             reconnectOnError: err => err.message.slice(0, 8) == 'READONLY',
         });
 
