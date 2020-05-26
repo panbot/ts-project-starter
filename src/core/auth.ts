@@ -24,7 +24,7 @@ export class AuthService {
     };
 
     assertRoles(required: Roles, provided: Roles) {
-        if (required && !(required & provided)) throw new AccessDeniedError(
+        if ((required & provided) != required) throw new AccessDeniedError(
             `insufficient permissions`
         );
     }
