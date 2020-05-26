@@ -1,6 +1,6 @@
 import { Module } from "../core/module";
 import { ReadApi } from "./apis/read";
-import { MongoService } from "../core/mongo";
+import { MongoService } from "../services/mongo";
 import { MongoConnectionOptions } from "typeorm/driver/mongodb/MongoConnectionOptions";
 import { InjectParam } from "../core/parameter";
 import { CreateApi } from "./apis/create";

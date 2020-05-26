@@ -4,6 +4,8 @@
   "description": "modular typescript project starter",
   "main": "src/index.ts",
   "scripts": {
+    "build": "npm run build:clean && tsc -p tsconfig.json",
+    "build:clean": "rimraf dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

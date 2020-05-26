@@ -6,32 +6,40 @@ import {
 import { Roles, UserContext, AuthService } from "./auth";
 import { Service, Inject } from "typedi";
 import { ServerResponse } from "http";
+import { ArgumentError } from "./error";
 
 type ApControllerType = new (...args: any[]) => any;
 
 export function Route(
     httpMethod: HTTPMethod,
-    route: string,
+    routes: string | string[],
     roles: Roles,
     contentType: ApRouteOptions["contentType"] = "application/json",
 ) {
     return function (proto: InstanceType<ApControllerType>, methodName: string) {
         const Controller = proto.constructor as ApControllerType;
 
-        let routes = ApRouteService.registry.get(Controller);
-        if (routes === undefined) {
-            routes = [];
-            ApRouteService.registry.set(Controller, routes);
+        let registered = ApRouteService.registry.get(Controller);
+        if (registered === undefined) {
+            registered = [];
+            ApRouteService.registry.set(Controller, registered);
         }
 
-        routes.push({
-            Controller,
-            methodName,
-            httpMethod,
-            route,
-            roles,
-            contentType,
-        });
+        if (typeof routes == 'string') {
+            routes = [ routes ];
+        }
+
+        for (let route of routes) {
+            registered.push({
+                Controller,
+                methodName,
+                httpMethod,
+                route,
+                roles,
+                contentType,
+            });
+        }
+
     }
 }
 
@@ -52,7 +60,12 @@ export type ApRouteOptions = {
     httpMethod: HTTPMethod,
     roles: Roles,
     route: string,
-    contentType: 'application/json' | 'text/html' | 'text/plain';
+    contentType:
+        'application/json' |
+        'application/jsonp' |
+        'text/html' |
+        'text/plain'
+    ,
 }
 
 @Service()
@@ -77,78 +90,102 @@ export class ApRouteService {
         switch (contentType) {
 
             case 'application/json':
-            return async (
-                request: FastifyRequest,
-                reply: FastifyReply<ServerResponse>,
-            ) => {
-                reply.type(contentType + '; charset=utf-8');
+            return this.createContentTypeHandler(
+                contentType + '; charset=utf-8',
+                roles,
+                runner,
+                (result: any) => JSON.stringify(result),
+            );
 
-                try {
-                    let userContext = this.authService.extractUserContext(request.headers['authorization']);
-                    this.authService.assertRoles(roles, userContext.roles);
-
-                    let json = await runner({
-                        request,
-                        reply,
-                        userContext,
-                        params: request.params,
-                        body: request.body,
-                        // logger: null,
-                    });
-
-                    if (!reply.sent) {
-                        reply.code(200);
-                        reply.send(json);
-                    }
-                } catch (e) {
-                    if (!reply.sent) {
-                        reply.code(e.httpCode || 500);
-                        reply.send(e.clientJson || { message: 'server error' });
-                    }
-
-                    if (!(e.httpCode < 500)) {
-                        console.error(e);
-                    }
-                }
-            }
+            case 'application/jsonp':
+            let wrap = (result: any, request: FastifyRequest) => this.wrapJsonp(
+                result,
+                request.query.callback,
+            );
+            return this.createContentTypeHandler(
+                 'application/javascript; charset=utf-8',
+                roles,
+                runner,
+                wrap,
+                wrap,
+            );
 
             default:
-            return async (
-                request: FastifyRequest,
-                reply: FastifyReply<ServerResponse>,
-            ) => {
-                reply.type(contentType + '; charset=utf-8');
+            return this.createContentTypeHandler(
+                contentType + '; charset=utf-8',
+                roles,
+                runner,
+                undefined,
+                e => e.message,
+            )
+        }
+    }
 
-                try {
-                    let userContext = this.authService.extractUserContext(request.headers['authorization']);
-                    this.authService.assertRoles(roles, userContext.roles);
+    private createContentTypeHandler(
+        contentType: string,
+        roles: Roles,
+        runner: (ctx: RouteContext) => Promise<any>,
+        formatResult?: (result: any, request: FastifyRequest) => any,
+        formatError?: (error: any, request: FastifyRequest) => any,
+    ) {
+        return async (
+            request: FastifyRequest,
+            reply: FastifyReply<ServerResponse>,
+        ) => {
+            reply.type(contentType);
 
-                    let text = await runner({
-                        request,
-                        reply,
-                        userContext,
-                        params: request.params,
-                        body: request.body,
-                        // logger: null,
-                    });
+            let code: number;
+            let result: any;
 
-                    if (!reply.sent) {
-                        reply.code(200);
-                        reply.send(text);
-                    }
-                } catch (e) {
+            try {
+                let userContext: UserContext = Object.assign(
+                    {},
+                    this.authService.extractUserContext(
+                        request.headers['authorization']
+                    ),
+                    this.extractRequestContext(request),
+                );
+                this.authService.assertRoles(roles, userContext.roles);
+
+                result = await runner({
+                    request,
+                    reply,
+                    userContext,
+                    params: request.params,
+                    body: request.body,
+                    // logger: null,
+                });
+                if (formatResult) result = formatResult(result, request);
+                code = 200;
+            } catch (e) {
+                e = e || {
+                    httpCode: 500,
+                    message: 'undefined error',
+                };
+
+                result = e.client || { message: 'server error' };
+                if (formatError) result = formatError(result, request);
+                code = e.httpCode || 500;
+
+                if (!e.httpCode || e.httpCode >= 500) {
                     console.error(e);
-                    if (!reply.sent) {
-                        reply.code(e.httpCode || 500);
-                        reply.send(e.message || `server error`);
-                    }
-
-                    if (!(e.httpCode < 500)) {
-                        console.error(e);
-                    }
                 }
             }
+
+            if (!reply.sent) {
+                reply.code(code);
+                reply.send(result);
+            }
         }
+    }
+
+    private extractRequestContext(request: FastifyRequest) {
+        return {
+        } as Partial<UserContext>;
+    }
+
+    private wrapJsonp(data: any, callback = '_') {
+        return callback + '(' + JSON.stringify(data === undefined ? null : data) + ')';
     }
 
     static registry = new Map<ApControllerType, ApRouteOptions[]>();

@@ -2,8 +2,8 @@ import { RunArgFactory, Runnable } from "../lib/runnable";
 import { MongoEntityManager, getConnection, createConnection, EntityMetadata } from "typeorm";
 import { Service } from "typedi";
 import { MongoConnectionOptions } from "typeorm/driver/mongodb/MongoConnectionOptions";
-import { ApiArg } from "./api";
-import { ArgumentError } from "./error";
+import { ApiArg } from "../core/api";
+import { ArgumentError } from "../core/error";
 
 @Service()
 export class MongoService implements RunArgFactory<MongoEntityManager> {

@@ -2,7 +2,7 @@ import { Module } from "../core/module";
 import { Service, Inject } from "typedi";
 import { Runnable, RunArg, RunArgFactory } from "../lib/runnable";
 import { Api, ApiArg } from "../core/api";
-import { MongoService } from "../core/mongo";
+import { MongoService } from "../services/mongo";
 import { DemoEntity } from './mongo-entities/demo-entity';
 
 type DemoArg = number;

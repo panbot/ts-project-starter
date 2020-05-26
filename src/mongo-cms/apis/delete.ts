@@ -1,7 +1,8 @@
 import { Runnable, RunArg } from "../../lib/runnable";
 import { MongoEntityManager } from "typeorm";
-import { MongoService } from "../../core/mongo";
-import { CmsApi, ApiArg } from "../../core/api";
+import { MongoService } from "../../services/mongo";
+import { ApiArg } from "../../core/api";
+import { CmsApi } from "../../core/extensions";
 
 @CmsApi(`delete entity`)
 export class DeleteApi implements Runnable {

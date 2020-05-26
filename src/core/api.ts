@@ -42,10 +42,6 @@ export function Api(
     }
 }
 
-export function AuthenticatedApi(doc: string) {
-    return Api({ doc, roles: Roles.Authenticated })
-}
-
 export function ApiArg(optionsOrDoc: Partial<ApiArgOptions> | string, optional = false) {
     let options: Partial<ApiArgOptions>;
     if (typeof optionsOrDoc == 'string') {

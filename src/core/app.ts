@@ -5,7 +5,7 @@ import Container, { Inject } from 'typedi';
 import { ModuleService, ModuleType } from './module';
 import { run } from './connectors';
 import { UserContext, AuthService } from './auth';
-import { ApiService } from './api';
+import { ApiService, ApiType } from './api';
 import { ApRouteService } from './route';
 
 export class App {
@@ -46,18 +46,26 @@ export class App {
         args: Object,
     ) {
         const Api = this.moduleService.getApi(module, api);
+        return this.runApi(Api, userContext, args);
+    }
 
+    async runApi(
+        Api: ApiType,
+        userContext: UserContext,
+        args: Object,
+    ) {
         const { roles, userContextProperty } = this.apiService.get(Api).options;
         this.authService.assertRoles(roles, userContext.roles);
 
         let runnable = Object.create(Container.get(Api));
-        Object.assign(runnable, this.apiService.validateAll(Api, args));
+        Object.assign(runnable, await this.apiService.validateAll(Api, runnable, args));
         if (userContextProperty !== undefined) {
             runnable[userContextProperty] = userContext;
         }
 
         return run(runnable);
     }
+
 
     startFastify() {
         let fastify = Fastify({
