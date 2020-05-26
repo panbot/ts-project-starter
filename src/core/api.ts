@@ -1,4 +1,4 @@
-import { Service, Token } from "typedi";
+import { Service } from "typedi";
 import { Roles } from "./auth";
 import { Runnable } from "../lib/runnable";
 import { ArgumentError } from "./error";
@@ -10,26 +10,27 @@ export type ApiOptions = {
     doc: string,
     name: string,
     roles: Roles,
-    cochin?: string,
     userContextProperty?: string,
+}
+
+export type ApiArgValidatableOptions = {
+    inputype: string,
+    parser: (v: unknown, api?: InstanceType<ApiType>) => any,
+    validator: (v: unknown, api?: InstanceType<ApiType>) => boolean | Promise<boolean>,
 }
 
 export type ApiArgOptions = {
     doc: string,
     optional: boolean,
-    type: any,
-    parser: (v: unknown, api?: InstanceType<ApiType>) => any,
-    validator: (v: unknown, api?: InstanceType<ApiType>) => boolean,
-}
+} & ApiArgValidatableOptions;
 
 export function Api(
     {
-        doc, name, roles, cochin
+        doc, name, roles
     }: {
         doc: string,
         name?: string,
         roles?: Roles,
-        cochin?: string,
     },
 ) {
     return function (Api: ApiType) {
@@ -37,7 +38,6 @@ export function Api(
             doc,
             name: name || Api.name.replace(/Api$/i, ''),
             roles: roles || Roles.Anonymous,
-            cochin,
         });
     }
 }
@@ -46,46 +46,110 @@ export function AuthenticatedApi(doc: string) {
     return Api({ doc, roles: Roles.Authenticated })
 }
 
-export function ApiArg(options: {
-    doc: string,
-    optional?: boolean,
-    parser?: (v: unknown, api?: InstanceType<ApiType>) => any,
-    validator?: (v: unknown, api?: InstanceType<ApiType>) => boolean,
-} | string, optional = false) {
-
-    let doc: string;
-    let parser: ((v: unknown, api: InstanceType<ApiType>) => any) | undefined;
-    let validator: ((v: unknown, api: InstanceType<ApiType>) => boolean) | undefined;
-
-    if (typeof options == 'string') {
-        doc = options;
+export function ApiArg(optionsOrDoc: Partial<ApiArgOptions> | string, optional = false) {
+    let options: Partial<ApiArgOptions>;
+    if (typeof optionsOrDoc == 'string') {
+        options = {
+            doc: optionsOrDoc,
+            optional,
+        }
     } else {
-        doc = options.doc;
-        optional = !!options.optional;
-        parser = options.parser;
-        validator = options.validator;
+        options = optionsOrDoc;
     }
 
     return function (proto: InstanceType<ApiType>, propertyName: string) {
         const { getOrInitArgMapFor, validatables } = ApiService;
         const Type = Reflect.getMetadata('design:type', proto, propertyName);
 
-        if (!parser && !validator) {
+        if (!options.parser && !options.validator) {
             const validatable = validatables.get(Type);
             if (
                 validatable === undefined
             ) throw new Error(`${Type.name} is not validatable`);
 
-            parser = validatable.parser;
-            validator = validatable.validator;
+            Object.assign(options, validatable);
+        }
+
+        getOrInitArgMapFor(proto).set(propertyName, Object.assign({
+            doc: '',
+            optional: false,
+            inputype: `${Type.name}`.toLowerCase(),
+            validator: _ => true,
+            parser: v => v,
+        }, options));
+    }
+}
+
+export function ApiArgInteger(options: {
+    doc: string,
+    optional?: boolean,
+    range?: [ number, number ],
+}) {
+    return ApiArg({
+        doc: options.doc,
+        optional: options.optional,
+        parser: v => {
+            let n: number;
+            switch (typeof v) {
+                case 'string':
+                case 'number': n = parseInt(`${v}`); break;
+                default: throw new Error(`not a number`);
+            }
+
+            if (options.range) {
+                let [ l, u ] = options.range;
+                if (n < l) throw new Error(`lower bound ${l}`);
+                if (n > u) throw new Error(`upper bound ${u}`);
+            }
+
+            return n;
+        }
+    })
+}
+
+export function ApiArgArrayOf(Type: any, options: {
+    doc: string,
+    optional?: boolean,
+}) {
+    return function (proto: InstanceType<ApiType>, propertyName: string) {
+        const { getOrInitArgMapFor, validatables } = ApiService;
+
+        const validatable = validatables.get(Type);
+        if (
+            validatable === undefined
+        ) throw new Error(`${Type.name} is not validatable`);
+
+        let parser: (v: unknown, api?: InstanceType<ApiType>) => any;
+        if (validatable.parser) {
+            parser = async (v: unknown, api?: InstanceType<ApiType>) => {
+                if (!(v instanceof Array)) throw new ArgumentError(`not an array`);
+                let parsed: any[] = [];
+                for (let item of v) parsed.push(await validatable.parser!(item, api));
+                return parsed;
+            }
+        } else {
+            parser = v => v;
+        }
+
+        let validator: (v: unknown, api?: InstanceType<ApiType>) => boolean | Promise<boolean>;
+        if (validatable.validator) {
+            validator = async (v: unknown, api?: InstanceType<ApiType>) => {
+                if (!(v instanceof Array)) return false;
+                for (let item of v) {
+                    if (! await validatable.validator!(item, api)) return false;
+                }
+                return true;
+            }
+        } else {
+            validator = _ => true;
         }
 
         getOrInitArgMapFor(proto).set(propertyName, {
-            doc,
-            optional,
-            type: Type,
-            parser: parser || ((v: any) => v),
-            validator: validator || ((v: any) => true),
+            doc: options.doc,
+            optional: options.optional || false,
+            inputype: validatable.inputype + '[]',
+            validator: _ => true,
+            parser,
         });
     }
 }
@@ -203,16 +267,10 @@ export class ApiService {
         return map;
     }
 
-    static validatables = new Map<any, {
-        parser?: (v: unknown) => any,
-        validator?: (v: unknown) => boolean,
-    }>();
+    static validatables = new Map<any, Partial<ApiArgValidatableOptions>>();
 }
 
-export function ApiArgValidatable(options: {
-    parser?: (v: unknown, api?: InstanceType<ApiType>) => any,
-    validator?: (v: unknown, api?: InstanceType<ApiType>) => boolean,
-}) {
+export function ApiArgValidatable(options: Partial<ApiArgValidatableOptions>) {
     return function (Type: any) {
         ApiService.validatables.set(
             Type,
