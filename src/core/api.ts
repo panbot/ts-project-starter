@@ -81,25 +81,67 @@ export function ApiArgInteger(options: {
     optional?: boolean,
     range?: [ number, number ],
 }) {
-    return ApiArg({
-        doc: options.doc,
-        optional: options.optional,
-        parser: v => {
-            let n: number;
-            switch (typeof v) {
-                case 'string':
-                case 'number': n = parseInt(`${v}`); break;
-                default: throw new Error(`not a number`);
-            }
 
-            if (options.range) {
-                let [ l, u ] = options.range;
+    let parser = v => {
+        let n: number;
+        switch (typeof v) {
+            case 'string':
+            case 'number': n = parseInt(`${v}`); break;
+            default: throw new Error(`not a number`);
+        }
+        return n
+    }
+
+    let { doc, optional, range } = options;
+    if (range) {
+        let [ l, u ] = range;
+        doc += ` [ ${l}, ${u} ]`;
+        return ApiArg({
+            doc,
+            optional,
+            parser: v => {
+                let n = parser(v)
                 if (n < l) throw new Error(`lower bound ${l}`);
                 if (n > u) throw new Error(`upper bound ${u}`);
+                return n
             }
+        })
+    } else {
+        return ApiArg({
+            doc,
+            optional,
+            parser,
+        })
+    }
+}
 
-            return n;
-        }
+export function ApiArgEnum<T>(options: {
+    doc: string,
+    optional?: boolean,
+    defaultValue?: T,
+    inputype?: string,
+    enum: any,
+}) {
+    let set = new Set<any>();
+    let { doc, optional, defaultValue, inputype } = options;
+    let defaultName: string | undefined;
+
+    for (let member in options.enum) {
+        let value = options.enum[member];
+        if (value === defaultValue) defaultName = member;
+        doc += `, ${value}:${member}`;
+        set.add(value);
+        inputype = inputype || typeof value;
+    }
+
+    if (defaultName) doc += `, 默认 ${defaultName}`;
+
+    return ApiArg({
+        doc,
+        optional: optional || defaultValue !== undefined,
+        inputype,
+        parser: v => v === undefined ? defaultValue : v,
+        validator: v => set.has(v as any),
     })
 }
 
