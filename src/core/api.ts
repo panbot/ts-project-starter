@@ -16,7 +16,7 @@ export type ApiOptions = {
 export type ApiArgValidatableOptions = {
     inputype: string,
     parser: (v: unknown, api?: InstanceType<ApiType>) => any,
-    validator: (v: unknown, api?: InstanceType<ApiType>) => boolean | Promise<boolean>,
+    validator: (v: unknown, api?: InstanceType<ApiType>) => boolean,
 }
 
 export type ApiArgOptions = {
@@ -159,22 +159,22 @@ export function ApiArgArrayOf(Type: any, options: {
 
         let parser: (v: unknown, api?: InstanceType<ApiType>) => any;
         if (validatable.parser) {
-            parser = async (v: unknown, api?: InstanceType<ApiType>) => {
+            parser = (v: unknown, api?: InstanceType<ApiType>) => {
                 if (!(v instanceof Array)) throw new ArgumentError(`not an array`);
                 let parsed: any[] = [];
-                for (let item of v) parsed.push(await validatable.parser!(item, api));
+                for (let item of v) parsed.push(validatable.parser!(item, api));
                 return parsed;
             }
         } else {
             parser = v => v;
         }
 
-        let validator: (v: unknown, api?: InstanceType<ApiType>) => boolean | Promise<boolean>;
+        let validator: (v: unknown, api?: InstanceType<ApiType>) => boolean;
         if (validatable.validator) {
-            validator = async (v: unknown, api?: InstanceType<ApiType>) => {
+            validator = (v: unknown, api?: InstanceType<ApiType>) => {
                 if (!(v instanceof Array)) return false;
                 for (let item of v) {
-                    if (! await validatable.validator!(item, api)) return false;
+                    if (! validatable.validator!(item, api)) return false;
                 }
                 return true;
             }
@@ -243,7 +243,7 @@ export class ApiService {
         await this.validateByOptions(api, propertyName, value, options);
     }
 
-    async validateAll(Api: ApiType, api: InstanceType<ApiType>, values: Object) {
+    validateAll(Api: ApiType, api: InstanceType<ApiType>, values: Object) {
         const { args } = ApiService;
 
         let map = args.get(Api);
@@ -252,7 +252,7 @@ export class ApiService {
         let ret: any = {};
 
         for (let [ name, options ] of map) {
-            let [ found, value ] = await this.validateByOptions(
+            let [ found, value ] = this.validateByOptions(
                 api,
                 name,
                 values[name],
@@ -264,7 +264,7 @@ export class ApiService {
         return ret;
     }
 
-    private async validateByOptions(
+    private validateByOptions(
         api: InstanceType<ApiType>,
         propertyName: string,
         value: unknown,
@@ -277,14 +277,14 @@ export class ApiService {
 
         let parsed: any;
         try {
-            parsed = await options.parser(value, api);
+            parsed = options.parser.apply(api, value);
         } catch (e) {
             throw new ArgumentError(
                 `invalid value of "${propertyName}": ${e.message}`
             );
         }
 
-        if (! await options.validator(parsed, api)) throw new ArgumentError(
+        if (! options.validator.apply(api, parsed)) throw new ArgumentError(
             `invalid value of "${propertyName}"`
         );
 

@@ -3,7 +3,7 @@ const Empty = Symbol("age cache empty value");
 
 export class AgeCache<T> {
 
-    private promise: Promise<T> | undefined;
+    private promise?: Promise<T>;
 
     private value: T | Symbol = Empty;
 
@@ -18,18 +18,13 @@ export class AgeCache<T> {
         this.start();
     }
 
-    async getValue(): Promise<T> {
-        if (this.promise !== undefined) return this.promise;
+    getValue(raw: true): T;
+    getValue(): Promise<T>;
+    getValue(raw?: true) {
+        if (!raw && this.promise !== undefined) return this.promise;
 
         if (this.value != Empty) return this.value as T;
-        else throw this.lastError;
-    }
-
-    invalidate() {
-        this.value = Empty;
-        this.lastError = null;
-
-        this.start();
+        else throw this.lastError || new Error(`trying to get raw value while empty`);
     }
 
     start() {

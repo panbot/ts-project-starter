@@ -58,10 +58,10 @@ export class App {
         this.authService.assertRoles(roles, userContext.roles);
 
         let runnable = Object.create(Container.get(Api));
-        Object.assign(runnable, await this.apiService.validateAll(Api, runnable, args));
         if (userContextProperty !== undefined) {
             runnable[userContextProperty] = userContext;
         }
+        Object.assign(runnable, this.apiService.validateAll(Api, runnable, args));
 
         return run(runnable);
     }
