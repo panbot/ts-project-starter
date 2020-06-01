@@ -277,14 +277,14 @@ export class ApiService {
 
         let parsed: any;
         try {
-            parsed = options.parser.apply(api, value);
+            parsed = options.parser(value, api);
         } catch (e) {
             throw new ArgumentError(
                 `invalid value of "${propertyName}": ${e.message}`
             );
         }
 
-        if (! options.validator.apply(api, parsed)) throw new ArgumentError(
+        if (! options.validator(value, api)) throw new ArgumentError(
             `invalid value of "${propertyName}"`
         );
 
