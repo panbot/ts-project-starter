@@ -1,6 +1,6 @@
 import { fastify } from 'fastify';
 import { InjectParam } from '../parameter';
-import Container, { Inject } from 'typedi';
+import Container from 'typedi';
 import { run } from './connectors';
 import { Roles, UserContext } from './security';
 import { deserialize } from 'bson';
@@ -16,19 +16,9 @@ export class App {
     @InjectParam(p => p.fastify.listen)
     private fastifyOptions: { port: number; host?: string; backlog?: number };
 
-    // private Modules: ModuleType[];
     loadedModules: ModuleConstructor[] = [];
 
     private controllers = new Set<Function>();
-
-    // @Inject(_ => ModuleService)
-    // private moduleService: ModuleService;
-
-    // @Inject(_ => ApRouteService)
-    // private routeService: ApRouteService;
-
-    // @Inject(_ => SecurityService)
-    // private securityService: SecurityService;
 
     loadModules(modules: ModuleConstructor[]) {
         this.loadedModules = this.loadedModules.concat(modules);
@@ -40,9 +30,15 @@ export class App {
             );
 
             for (let ctl of opts.controllers) this.controllers.add(ctl);
+
+            for (let ctor of opts.apis) {
+                let opts = Api.get(ctor);
+                if (!opts) throw new Error(
+                    `Options for Api ${ctor.name} not found. ` +
+                    `Is it missing the @Api() decoratior?`,
+                );
+            }
         }
-        // this.Modules = Modules;
-        // this.moduleService.initModuleApis();
     }
 
     async initModules() {
@@ -51,16 +47,6 @@ export class App {
             if (module.init) await module.init!();
         }
     }
-
-    // async run(
-    //     moduleName: string,
-    //     apiName: string,
-    //     userContext: UserContext,
-    //     args: Object,
-    // ) {
-    //     const Api = this.moduleService.getApi(module, api);
-    //     return this.runApi(Api, userContext, args);
-    // }
 
     async runApi(
         ctor: ApiConstructor,

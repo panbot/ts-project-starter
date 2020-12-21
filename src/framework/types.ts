@@ -30,9 +30,11 @@ export type RouteContext = {
     // logger: Loggable,
 };
 
-export type Controller = {
-    [ key: string ]: (ctx: RouteContext) => any,
-};
+// export type Controller = {
+//     [ key: string ]: (ctx: RouteContext) => any,
+// };
+
+export type Controller = any;
 
 export type ControllerConstructor = Constructor<Controller>;
 

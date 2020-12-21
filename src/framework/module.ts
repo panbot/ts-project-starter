@@ -1,11 +1,10 @@
-import { Constructor } from "../lib/types";
 import { createRegistryDecorator } from "./decorator";
-import { ApiConstructor, ModuleConstructor } from "./types";
+import { ApiConstructor, ControllerConstructor, ModuleConstructor } from "./types";
 
 export class ModuleOptions {
     doc: string = '';
     apis: ApiConstructor[] = [];
-    controllers: Constructor<{}>[] = [];
+    controllers: ControllerConstructor[] = [];
     dependencies: () => ModuleConstructor[] = () => [];
 }
 
