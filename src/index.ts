@@ -1,12 +1,24 @@
-import bootstrap from './bootstrap';
+import './bootstrap';
 
-(async () => {
+// import Container from 'typedi';
 
-    const app = await bootstrap();
+// import { App } from "./framework/app";
+// import { ModuleType } from "./framework/module";
 
-    app.startFastify();
+// import { ApiGatewayModule } from './api-gateway/module';
+// import { DemoModule } from './demo/module';
 
-})().catch(e => {
-    console.dir(e, { depth: 5 });
-    process.exit(1);
-});
+// let modules: ModuleType[] = [
+//     ApiGatewayModule,
+//     DemoModule,
+// ];
+
+// (async () => {
+//     const app = Container.get(App);
+//     await app.loadModules(modules);
+//     await app.initModules();
+//     await app.startServer();
+// })().catch(e => {
+//     console.error(e);
+//     process.exit(1);
+// });

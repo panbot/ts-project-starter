@@ -3,9 +3,9 @@ import { MongoEntityManager } from "typeorm";
 import EV from '../../lib/entity-validator';
 import { Inject } from "typedi";
 import { MongoService } from "../../services/mongo";
-import { ArgumentJsonError } from "../../core/error";
-import { CmsApi } from "../../core/extensions";
-import { ApiArg } from "../../core/api";
+import { ArgumentJsonError } from "../../framework/error";
+import { CmsApi } from "../../framework/extensions";
+import { ApiArg } from "../../framework/api";
 
 @CmsApi(`create entity`)
 export class CreateApi implements Runnable {

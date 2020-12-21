@@ -3,7 +3,9 @@ import "reflect-metadata";
 type TypeOf<T> = new (...args: any[]) => T;
 type Instantiator = <T>(type: TypeOf<T>) => T;
 
-const RunArgKeys = {
+const RunArgKeys: {
+    [ key: string ]: Symbol,
+} = {
     run: Symbol(),
 }
 

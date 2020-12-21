@@ -1,39 +1,34 @@
 import "reflect-metadata";
-
-type TypeOf<T> = new (...args: any[]) => T;
-type Instantiator = <T>(type: TypeOf<T>) => T;
-type Register = (s: any) => void;
+import { Constructor } from "./types";
 
 export interface BeforeAdvisor {
-    beforePointcut(target: any, method: string, args: any[]): void;
+    beforePointcut<T>(target: T, method: keyof T, args: any[]): void;
 }
 
 export interface AfterAdvisor {
-    afterPointcut(result: any, target: any, method: string, args: any[]): any;
+    afterPointcut<T>(result: any, target: T, method: keyof T, args: any[]): any;
 }
 
 export interface AroundAdvisor {
-    aroundPointcut(
+    aroundPointcut<T>(
         execution: () => any,
-        target: any,
-        method: string,
+        target: T,
+        method: keyof T,
         args: any[]
     ): any;
 }
 
-const metadataKeys = {
-    proxy: Symbol('aop metadata proxy'),
-}
+const ProxySymbol = Symbol('aop metadata proxy');
 
 export default (
-    instantiate: Instantiator,
-    register: Register,
+    instantiate: <T>(type: Constructor<T>) => T,
+    register: (s: any) => void,
 ) => {
 
-    const Before = (Advisor: TypeOf<BeforeAdvisor>) =>
+    const Before = <T extends Object>(Advisor: Constructor<BeforeAdvisor>) =>
         (
-            prototype: Object,
-            propertyName: string,
+            prototype: T,
+            propertyName: keyof T,
         ) => advice(
             prototype,
             propertyName,
@@ -44,10 +39,10 @@ export default (
         )
     ;
 
-    const After = (Advisor: TypeOf<AfterAdvisor>) =>
+    const After = <T extends Object>(Advisor: Constructor<AfterAdvisor>) =>
         (
-            prototype: Object,
-            propertyName: string,
+            prototype: T,
+            propertyName: keyof T,
         ) => advice(
             prototype,
             propertyName,
@@ -58,10 +53,10 @@ export default (
         )
     ;
 
-    const Around = (Advisor: TypeOf<AroundAdvisor>) =>
+    const Around = <T extends Object>(Advisor: Constructor<AroundAdvisor>) =>
         (
-            prototype: Object,
-            propertyName: string,
+            prototype: T,
+            propertyName: keyof T,
         ) => advice(
             prototype,
             propertyName,
@@ -76,18 +71,18 @@ export default (
 
     function advice<T extends Object>(
         prototype: T,
-        propertyName: string,
-        advice: (execution: () => any, target, args: any[]) => any,
+        propertyName: keyof T,
+        advice: (execution: () => any, target: any, args: any[]) => any,
     ) {
         if ('function' != typeof prototype[propertyName])
             throw new Error(`${prototype.constructor.name}.${propertyName} is not a function`)
         ;
 
-        let target;
-        if (Reflect.hasMetadata(metadataKeys.proxy, prototype)) {
-            target = Reflect.getMetadata(metadataKeys.proxy, prototype);
+        let target: any;
+        if (Reflect.hasMetadata(ProxySymbol, prototype)) {
+            target = Reflect.getMetadata(ProxySymbol, prototype);
         } else {
-            target = instantiate(prototype.constructor as TypeOf<T>);
+            target = instantiate(prototype.constructor as Constructor<T>);
         }
 
         let proxy = Object.create(target);
@@ -98,7 +93,7 @@ export default (
                 args
             ),
         });
-        Reflect.defineMetadata(metadataKeys.proxy, proxy, prototype)
+        Reflect.defineMetadata(ProxySymbol, proxy, prototype)
 
         register(proxy);
     }

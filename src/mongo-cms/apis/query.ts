@@ -1,7 +1,7 @@
 import { Runnable, RunArg } from "../../lib/runnable";
 import { MongoEntityManager } from "typeorm";
-import { ApiArg } from "../../core/api";
-import { CmsApi } from "../../core/extensions";
+import { ApiArg } from "../../framework/api";
+import { CmsApi } from "../../framework/extensions";
 import { MongoService } from "../../services/mongo";
 
 @CmsApi(`query entity`)

@@ -45,3 +45,15 @@ export function stripTimeCopy(date: Date) {
         date.getDate(),
     );
 }
+
+export function objectFromMap(map: Map<any, any>) {
+    let o: any = {};
+    for (let [ k, v ] of map.entries()) {
+        if (v instanceof Map) {
+            v = objectFromMap(v);
+        }
+        o[k] = v;
+    }
+
+    return o;
+}

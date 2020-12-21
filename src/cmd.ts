@@ -1,6 +1,6 @@
 import bootstrap from './bootstrap';
 
-import { Roles } from "./core/auth";
+import { Roles } from "./framework/auth";
 
 (async () => {
 

@@ -1,25 +1,40 @@
 import { RunArgFactory, Runnable } from "../lib/runnable";
-import { MongoEntityManager, getConnection, createConnection, EntityMetadata } from "typeorm";
+import { MongoEntityManager, EntityMetadata, getConnectionManager, Connection } from "typeorm";
 import { Service } from "typedi";
+import { ApiArg, ApiType } from "../framework/api";
 import { MongoConnectionOptions } from "typeorm/driver/mongodb/MongoConnectionOptions";
-import { ApiArg } from "../core/api";
-import { ArgumentError } from "../core/error";
+import { InjectParam } from "../parameter";
+import { ArgumentError } from "../framework/error";
+import shutdown from "../lib/shutdown";
 
 @Service()
 export class MongoService implements RunArgFactory<MongoEntityManager> {
 
-    consume(entity: string | Function | Object, values: Object, em: MongoEntityManager) {
+    @InjectParam(p => p.mongo)
+    private connectionOptions: {
+        [ key: string ]: MongoConnectionOptions,
+    };
+
+    make(
+        entityOrClass: Object | Function,
+        data: Object,
+        em: MongoEntityManager,
+    ) {
         let metadata: EntityMetadata;
-        if (typeof entity == 'string' || typeof entity == 'function') {
-            metadata = em.connection.getMetadata(entity);
-            entity = em.getRepository(metadata.target).create() as Object;
+        let entity: any;
+        if (typeof entityOrClass == 'function') {
+            entity = em.create(entityOrClass, data);
+            metadata = em.connection.getMetadata(entityOrClass);
         } else {
-            metadata = em.connection.getMetadata(entity.constructor);
+            entity = Object.assign(entityOrClass, em.create(entityOrClass.constructor, data));
+            metadata = em.connection.getMetadata(entityOrClass.constructor);
         }
 
         for (let column of metadata.nonVirtualColumns) {
             let p = column.propertyName;
-            let v = values[p];
+            if (p == metadata.objectIdColumn?.propertyName) continue;
+
+            let v = data[p];
             if (v === undefined) continue;
 
             switch (column.type) {
@@ -50,51 +65,155 @@ export class MongoService implements RunArgFactory<MongoEntityManager> {
         return entity;
     }
 
-    async produceRunArgFor(_: Runnable) {
-        return getConnection(MongoService.connectionName).mongoManager;
-    }
+    async produceRunArgFor(runnable: Runnable, database?: string) {
+        if (!database) {
+            let propertyName = MongoEntityClassProperties.get(runnable.constructor);
+            if (!propertyName) throw new Error(
+                `cannot determine database for ${runnable.constructor.name}, ` +
+                `is it missing the @ApiMongoEntityClassArg() annotation?`
+            );
 
-    async releaseRunArgFor(_: Runnable) {
-    }
-
-    private static connectionName: string;
-    private static entities: any[] = [];
-    private static entityNames = new Set<string>();
-
-    static async createConnection(options: MongoConnectionOptions) {
-        const name = options.name;
-        if (name === undefined) throw new Error(`name is required`);
-        MongoService.connectionName = name;
-        await createConnection(Object.assign(options, {
-            entities: MongoService.entities,
-        }));
-    }
-
-    static registerEntities(entities: any[]) {
-        MongoService.entities.push(...entities);
-       for (let entity of entities) {
-            MongoService.entities.push(entity);
-            MongoService.entityNames.add(entity.name);
-       }
-    }
-
-    static hasEntity(name: string) {
-        return MongoService.entityNames.has(name);
-    }
-
-    static MongoEntityName(doc = 'mongo entity name') {
-        return ApiArg({
-            doc,
-            parser: (v: unknown) => {
-                if (typeof v == 'string') {
-                    if (!MongoService.hasEntity(v)) {
-                        throw new ArgumentError(`mongo entity "${v}" not found`, 404);
-                    }
-                    return v;
-                } else {
-                    throw new ArgumentError(`string expected`);
-                }
+            let v = runnable[propertyName];
+            if (typeof v == 'string') {
+                database = MongoService.parseQualifiedEntityName(v)[0];
+            } else if (typeof v == 'function') {
+                database = MongoService.e2d.get(v);
             }
-        })
+        }
+
+        if (!database) throw new Error(
+            `cannot determine database for ${runnable.constructor.name}`
+        );
+
+        return (await this.getConnection(database)).mongoManager;
+    }
+
+    async releaseRunArgFor(runnable: Runnable) {
+        // (async () => await this.connections.get(runnable)?.close())().catch(e => console.error(e));
+    }
+
+    private connectionManager = getConnectionManager();
+    private connectionInit = new WeakMap<Connection, Promise<Connection>>();
+    async getConnection(database: string) {
+        if (!this.connectionManager.has(database)) {
+            let options = this.connectionOptions[database];
+            if (!options) throw new Error(`connection options for "${database}" not found`);
+
+            let entities = MongoService.d2e.get(database);
+            if (!entities) throw new Error(`no entities registered for "${database}"`);
+
+            let connection = this.connectionManager.create(Object.assign(options, {
+                name: database,
+                type: "mongodb",
+                entities: [ ...entities.values() ],
+            }));
+
+            let resolve;
+            let promise = new Promise<Connection>(r => resolve = r);
+            this.connectionInit.set(connection, promise);
+            await connection.connect();
+            console.info(`mongo database "${database}" connected`)
+            shutdown.register(async () => {
+                await connection.close();
+                console.info(`mongo database "${database}" disconnected`)
+            });
+            resolve(connection);
+            this.connectionInit.delete(connection);
+
+            return connection;
+        }
+
+        let connection = this.connectionManager.get(database);
+        let init = this.connectionInit.get(connection);
+        if (init) return await init;
+        else return connection;
+    }
+
+    static parseQualifiedEntityName(v: string): [ string, Function ] {
+        let [ database, entityName ] = v.split('.');
+        if (!entityName) throw new ArgumentError(
+            `the value must be in the format of <database>.<entity>`,
+        );
+
+        let entities = this.d2e.get(database);
+        if (!entities) throw new ArgumentError(`database "${database}" not found`);
+
+        let entityClass = entities.get(entityName);
+        if (!entityClass) throw new ArgumentError(
+            `entity "${entityName}" not found in "${database}"`,
+            404,
+        );
+
+        return [ database, entityClass ];
+    }
+
+    static getQualifiedEntityName(entityClass: Function) {
+        let database = this.e2d.get(entityClass);
+        if (!database) throw new ArgumentError(
+            `entity "${entityClass.name}" is not registered in any database`,
+        );
+
+        return database + '.' + entityClass.name;
+    }
+
+
+    static d2e = new Map<string, Map<string, Function>>();
+    static e2d = new Map<Function, string>();
+
+    static registerEntities(database: string, entityClasses: Function[]) {
+        let entities = this.d2e.get(database);
+        if (!entities) {
+            entities = new Map<string, Function>();
+            this.d2e.set(database, entities);
+        }
+        for (let entityClass of entityClasses) {
+            entities.set(entityClass.name, entityClass);
+            this.e2d.set(entityClass, database);
+        }
+    }
+
+}
+
+let MongoEntityClassProperties = new Map<Function, string>();
+export function ApiMongoEntityClassArg(doc = 'entity class') {
+    return function (proto: InstanceType<ApiType>, propertyName: string) {
+        MongoEntityClassProperties.set(proto.constructor, propertyName);
+        ApiArg({
+            doc,
+            parser: (v, api) => {
+                let entityClass: Function;
+                if (typeof v == 'string') {
+                    [ , entityClass ] = MongoService.parseQualifiedEntityName(v);
+                } else if (typeof v == 'function') {
+                    entityClass = v;
+                } else {
+                    throw new ArgumentError(`type error`);
+                }
+
+                return entityClass;
+            },
+        })(proto, propertyName);
+    }
+}
+
+export function ApiMongoEntityIdArg(doc = 'entity id') {
+    return ApiArg({
+        doc,
+        validator: (v: unknown) => typeof v == 'string' && /^[0-9a-f]{24}$/.test(v),
+    })
+}
+
+export function ApiMongoEntityDataArg(doc = 'entity data') {
+    return function (proto: InstanceType<ApiType>, propertyName: string) {
+        ApiArg({
+            doc,
+            parser: (v, api) => {
+                if (typeof v != 'object' || v == null) throw new ArgumentError(
+                    `object expected`,
+                );
+
+                return v;
+            },
+        })(proto, propertyName)
     }
 }

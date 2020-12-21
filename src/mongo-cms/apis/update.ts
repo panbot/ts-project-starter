@@ -2,10 +2,10 @@ import { Runnable, RunArg } from "../../lib/runnable";
 import { MongoEntityManager } from "typeorm";
 import EV from '../../lib/entity-validator';
 import { Inject } from "typedi";
-import { ArgumentError, ArgumentJsonError } from "../../core/error";
-import { CmsApi } from "../../core/extensions";
+import { ArgumentError, ArgumentJsonError } from "../../framework/error";
+import { CmsApi } from "../../framework/extensions";
 import { MongoService } from "../../services/mongo";
-import { ApiArg } from "../../core/api";
+import { ApiArg } from "../../framework/api";
 
 @CmsApi(`update entity`)
 export class UpdateApi implements Runnable {
