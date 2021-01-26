@@ -1,5 +1,5 @@
 import './bootstrap';
-import { Inject } from 'typedi';
+import { Inject, Service } from 'typedi';
 
 import shutdown from './lib/shutdown';
 import { Runnable } from './lib/runnable';
