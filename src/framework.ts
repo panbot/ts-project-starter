@@ -28,6 +28,7 @@ export const Tokens = {
     EnabledModules: new Token<ModuleConstructor[]>('enabled modules'),
     Jwt: new Token<JWT>('auth jwt'),
     ModuleApiLookup: new Token<ModuleApiLookup>('module api lookup'),
+    AuthSchemes: new Token<{ [ k: string ]: (v: string) => any }>(),
 };
 
 export const InjectParam = (

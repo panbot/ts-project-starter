@@ -26,11 +26,8 @@ export default class implements Runnable {
     @Inject(Tokens.EnabledModules)
     modules: ModuleConstructor[];
 
-    get authSchemes() {
-        return {
-            Bearer: this.jwt.decode,
-        }
-    }
+    @Inject(Tokens.AuthSchemes)
+    authSchemes: Record<string, (payload: string) => any>;
 
     get controllers() {
         return this.modules.reduce(

@@ -32,3 +32,7 @@ Container.set(Tokens.ModuleApiLookup, new ModuleApiLookup(Module, Api));
 
 const jwt = createJWT(parameters.secret, ArgumentError);
 Container.set(Tokens.Jwt, jwt);
+
+Container.set(Tokens.AuthSchemes, {
+    Bearer: jwt.decode,
+});
