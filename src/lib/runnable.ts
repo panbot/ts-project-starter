@@ -1,7 +1,5 @@
 import "reflect-metadata";
-
-type TypeOf<T> = new (...args: any[]) => T;
-type Instantiator = <T>(type: TypeOf<T>) => T;
+import { Constructor, Instantiator } from "./types";
 
 const RunArgKeys: {
     [ key: string ]: Symbol,
@@ -9,22 +7,24 @@ const RunArgKeys: {
     run: Symbol(),
 }
 
-export interface RunArgFactory<T> {
-    produceRunArgFor(r: Runnable, ...args: any[]): Promise<T>;
+export interface RunArgFactory<RunArg = any, ProducerOptions = never> {
+    produceRunArgFor(r: Runnable, options?: ProducerOptions): Promise<RunArg>;
     releaseRunArgFor(r: Runnable): Promise<void>;
-    aroundRun?<T>(run: () => Promise<T>, r: Runnable): Promise<T>;
+    aroundRun?<V>(run: () => Promise<V>, r: Runnable): Promise<V>;
 }
 
-type RunArgMetadata<T> = {
-    Factory: TypeOf<RunArgFactory<T>>,
-    factoryArgs: any[],
+type RunArgMetadata = {
+    Factory: Constructor<RunArgFactory>,
+    options: any,
 };
 
 export interface Runnable<RunResult = any> {
     run(...args: any[]): Promise<RunResult>;
 }
 
-export function RunArg<Arg>(Factory: TypeOf<RunArgFactory<Arg>>, ...factoryArgs: any[]) {
+export function RunArg<RunArg, ProducerOptions>(
+    Factory: Constructor<RunArgFactory<RunArg, ProducerOptions>>,
+    options?: ProducerOptions) {
     return (proto: Runnable, method: string, index: number) => {
         const key = RunArgKeys[method];
         if (!key) throw new Error(`${method} not supported`);
@@ -34,7 +34,7 @@ export function RunArg<Arg>(Factory: TypeOf<RunArgFactory<Arg>>, ...factoryArgs:
         }
 
         let list = Reflect.getMetadata(key, proto) as any[];
-        list[index] = { Factory, factoryArgs } as RunArgMetadata<Arg>;
+        list[index] = { Factory, options } as RunArgMetadata;
     }
 }
 
@@ -43,7 +43,7 @@ const wraps = {
     runnable: <T>(runnable: Runnable<T>, args: any[]) => () => runnable.run(...args),
 
     around: <T>(
-        arounder: RunArgFactory<any>,
+        arounder: RunArgFactory,
         execution: () => Promise<T>,
         runnable: Runnable,
     ) => () => arounder.aroundRun!(execution, runnable),
@@ -57,7 +57,7 @@ export default (
     {
         let metadata =
             Reflect.getMetadata(RunArgKeys.run, runnable) as
-            RunArgMetadata<any>[] | undefined
+            RunArgMetadata[] | undefined
         ;
 
         if (metadata === undefined) return await runnable.run();
@@ -70,18 +70,18 @@ export default (
 
         let runArgs: any[] = [];
 
-        let factories: RunArgFactory<any>[] = [];
-        let arounders: RunArgFactory<any>[] = [];
+        let factories: RunArgFactory[] = [];
+        let arounders: RunArgFactory[] = [];
 
         for (
-            let { Factory, factoryArgs }
+            let { Factory, options }
             of
-            metadata as RunArgMetadata<any>[]
+            metadata as RunArgMetadata[]
         ) {
             let factory = instantiate(Factory);
             factories.push(factory);
             if (factory.aroundRun) arounders.push(factory);
-            runArgs.push(factory.produceRunArgFor(runnable, ...factoryArgs));
+            runArgs.push(factory.produceRunArgFor(runnable, options));
         }
         runArgs = await Promise.all(runArgs);
 

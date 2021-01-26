@@ -1,23 +1,28 @@
-import bootstrap from './bootstrap';
+import './bootstrap';
 
-import { Roles } from "./framework/auth";
+import { Inject } from 'typedi';
+import { Api, Module, Tokens } from './framework';
+import { ModuleApiLookup } from './lib/framework/lookup';
+import { Runnable } from './lib/runnable';
+import { UserContext } from './app';
+import { CommandUser, Superuser } from './lib/framework/roles';
 
-(async () => {
+export default class implements Runnable {
 
-    const app = await bootstrap();
+    @Inject(Tokens.ModuleApiLookup)
+    private lookup: ModuleApiLookup;
 
-    console.dir(
-        await app.run(
-            process.argv[2], process.argv[3],
-            { uid: 'root', name: 'cmd line user', roles: Roles.Super },
-            JSON.parse(process.argv[4] || '{}'),
-        ),
-        { depth: 5 },
-    );
+    async run() {
+        let { module } = this.lookup.findModule(process.argv[3]);
+        await Module.initModules([ module ]);
 
-    process.exit(0);
+        let uc = new UserContext();
+        uc.roles = Superuser | CommandUser;
 
-})().catch(e => {
-    console.dir(e, { depth: 5 });
-    process.exit(1);
-});
+        await Api.run(
+            this.lookup.findApi(process.argv[3], process.argv[4]).api,
+            uc,
+            JSON.parse(process.argv[5] || '{}')
+        );
+    }
+}

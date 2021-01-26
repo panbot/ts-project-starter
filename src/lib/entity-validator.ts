@@ -1,5 +1,4 @@
 import "reflect-metadata";
-import { ArgumentError } from "../framework/error";
 
 const EntityValidators = Symbol('entity validators');
 
@@ -145,7 +144,7 @@ export default {
 
     ChooseOne: (
         options: any[],
-        msg = (options: any[]) => `值只能是${options.join(', ')}中的一个`,
+        msg = (options: any[]) => `值只能是 ${options.join(', ')} 中的一个`,
     ) => (entity: any, propertyName: string) => reg(
         entity,
         propertyName,
@@ -204,16 +203,5 @@ export default {
             EntityValidators,
             typeof entityOrClass == 'function' ? entityOrClass : entityOrClass.constructor,
         ) as Map<any, Validatable[]> | undefined;
-    },
-
-    assert(entity: any, fields?: string[]) {
-        let { invalid, errors } = this.validate(entity, fields);
-        if (invalid) throw new ArgumentError(
-            `entity validation failed`,
-            460,
-            {
-                errors,
-            }
-        );
     },
 }

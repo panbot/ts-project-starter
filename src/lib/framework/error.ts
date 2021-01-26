@@ -27,3 +27,11 @@ export class AccessDeniedError extends ArgumentError {
         super(message, 403, extra);
     }
 }
+
+export class ServerTooManyRequestsError extends ArgumentError {
+    httpCode = 529;
+}
+
+export class ClientTooManyRequestsError extends ArgumentError {
+    httpCode = 429;
+}

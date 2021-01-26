@@ -2,3 +2,4 @@
 /.vscode/
 /parameters.json
 /dist/
+.DS_Store

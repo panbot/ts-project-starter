@@ -1,6 +1,6 @@
 import { createHmac } from 'crypto';
 
-export default function (secret: string, Error: new (msg: string) => any) {
+export default function createJWT(secret: string, Error: new (msg: string) => any) {
     function sign(s: Buffer) {
         return createHmac('sha256', secret)
             .update(s)
@@ -55,4 +55,6 @@ export default function (secret: string, Error: new (msg: string) => any) {
             return JSON.parse(verify(jwt).toString('utf8'));
         }
     }
-}
+};
+
+export type JWT = ReturnType<typeof createJWT>;

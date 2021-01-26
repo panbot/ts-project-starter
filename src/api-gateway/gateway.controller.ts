@@ -1,130 +1,128 @@
 import { Inject } from "typedi";
-import { ArgumentError, Module } from "../framework";
-import { Api, ApiOptions } from "../framework/api";
-import { App } from "../framework/app";
-import { Route } from "../framework/route";
-import { ApiConstructor, ModuleConstructor, RouteContext } from "../framework/types";
+import { Roles } from "../app";
+import { Module, Route, Api, Tokens } from "../framework";
+import { ApiOptions } from "../lib/framework/api";
+import { ModuleApiLookup } from "../lib/framework/lookup";
+import { ModuleOptions } from "../lib/framework/module";
+import { RouteContext } from "../lib/framework/route";
+import { ModuleConstructor, ApiConstructor } from "../lib/framework/types";
 
 export class GatewayController {
 
-    @Inject(_ => App)
-    private app: App;
+    @Inject(Tokens.EnabledModules)
+    private modules: ModuleConstructor[];
 
-    private lookup = new Map<string, {
-        ctor: ModuleConstructor,
-        apis: Map<string, ApiConstructor>,
-    }>();
-
-    constructor() {
-        this.initLookup();
-    }
+    @Inject(Tokens.ModuleApiLookup)
+    private lookup: ModuleApiLookup;
 
     @Route({
         httpMethod: 'POST',
-        route: '/api/:module/:api',
+        path: '/api/:module/:api',
         contentType: 'application/json',
     })
     @Route({
         httpMethod: 'POST',
-        route: '/api/:module/:api/:_',
+        path: '/api/:module/:api/:_',
         contentType: 'application/json',
     })
-    run({
+    async api({
         params: { module, api },
         body,
         userContext,
     }: RouteContext) {
-        return this.app.runApi(this.findApi(module, api), userContext, body);
+        let args: { [ key: string ]: unknown };
+        if (body == null) args = {};
+        else args = body;
+        return Api.run(
+            this.lookup.findApi(module, api).api,
+            userContext,
+            args,
+        );
     }
 
     @Route({
         httpMethod: 'GET',
-        route: '/api-doc',
+        path: '/api-doc',
         contentType: 'application/json',
     })
     docForAll() {
-        let modules: any[] = [];
-
-        for (let ctor of this.app.loadedModules) {
-            modules.push([
-                ctor.name,
-                this.describeModule(ctor),
-            ]);
+        return {
+            roles: Roles,
+            apis: this.modules
+                .map(m => this.describeModule(m, Module.get(m)))
+                .reduce(
+                    (pv, cv) => pv.concat(cv),
+                    []
+                ),
         }
-
-        return modules
     }
 
     @Route({
         httpMethod: 'GET',
-        route: '/api-doc/:module',
+        path: '/api-doc/:module',
         contentType: 'application/json',
     })
     docForModule({
-        params: { module },
+        params,
     }: RouteContext) {
-        return this.describeModule(this.findModule(module).ctor);
+        const { module, options } = this.lookup.findModule(params.module);
+        return this.describeModule(module, options);
     }
 
     @Route({
         httpMethod: 'GET',
-        route: '/api-doc/:module/:api',
+        path: '/api-doc/:module/:api',
         contentType: 'application/json',
     })
     docForApi({
-        params: { module, api },
+        params,
     }: RouteContext) {
-        let ctor = this.findApi(module, api);
-        return this.describeApi(Api.get(ctor)!);
+        const { api, options } = this.lookup.findApi(params.module, params.api);
+        return this.describeApi(api, options);
     }
 
-    private findModule(moduleName: string) {
-        let v = this.lookup.get(moduleName);
-        if (!v) throw new ArgumentError(`module "${moduleName}" not found`);
-        return v;
+    @Route({
+        httpMethod: 'GET',
+        path: '/who-am-i',
+        contentType: 'application/json',
+    })
+    whoAmI({
+        userContext,
+    }: RouteContext) {
+        return {
+            roles: Roles.nameRoles(userContext.roles),
+            userContext,
+        }
     }
 
-    private findApi(moduleName: string, apiName: string) {
-        let v = this.findModule(moduleName);
-        let api = v.apis.get(apiName);
-        if (!api) throw new ArgumentError(`api "${apiName}" not found`);
-
-        return api
+    private describeModule(module: ModuleConstructor, options: ModuleOptions) {
+        return options
+            .apis
+            .map(api => Object.assign(this.describeApi(api, Api.get(api)), {
+                module: module.name,
+                path: [
+                    'api',
+                    ...[
+                        module,
+                        api,
+                    ].map(ctor => this.lookup.namingScheme(ctor)),
+                ].join('/'),
+            }))
     }
 
-    private describeModule(ctor: ModuleConstructor) {
-        return Module.get(ctor)!.apis.map(ctor => this.describeApi(Api.get(ctor)!))
-    }
-
-    private describeApi(options: ApiOptions) {
+    private describeApi(api: ApiConstructor, options: ApiOptions) {
         let args: any[] = [];
 
         for (let [ name, arg ] of options.args) {
-            args.push({
-                name,
-                doc: arg.doc,
-                type: arg.inputype,
-            })
+            if (arg.necessity == 'overridden') continue;
+            args.push(Object.assign({ name }, arg));
         }
 
         return {
+            name: api.name,
             doc: options.doc,
+            roles: options.roles,
             args,
-        }
-    }
-
-    private initLookup() {
-        for (let ctor of this.app.loadedModules) {
-            let name = ctor.name;
-            let apis = new Map<string, ApiConstructor>();
-            this.lookup.set(name, { ctor, apis });
-
-            for (let apiCtor of Module.get(ctor)?.apis || []) {
-                let name = apiCtor.name;
-                apis.set(name, apiCtor);
-                name = name.replace(/Api$/, '');
-                apis.set(name, apiCtor);
-            }
         }
     }
 }
