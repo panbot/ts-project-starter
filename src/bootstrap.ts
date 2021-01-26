@@ -1,9 +1,5 @@
 import "reflect-metadata";
-
 import Container from "typedi";
-import { useContainer } from 'typeorm';
-useContainer(Container);
-
 import {
     Api,
     ArgumentError,
