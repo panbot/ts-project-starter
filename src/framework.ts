@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import Container, { Token } from 'typedi';
 import { Instantiator } from './lib/types';
 import CreateRun from './lib/runnable';
@@ -7,11 +8,18 @@ import { JWT } from './lib/jwt';
 import { ModuleApiLookup } from './lib/framework/lookup';
 import { AppParameters } from './app';
 import FrameworkFactory from './lib/framework';
+import * as AOP from './lib/aop';
 
-const instantiator: Instantiator = t => Container.get(t);
-export const run = CreateRun(instantiator);
+export const instantiate: Instantiator = type => Container.get(type);
 
-const Framework = FrameworkFactory(instantiator);
+export const { Before, After, Around } = AOP.ProxifiedAopFactory(
+    instantiate,
+    (type, instance) => Container.set(type, instance),
+);
+
+export const run = CreateRun(instantiate);
+
+const Framework = FrameworkFactory(instantiate);
 export const {
     Module,
     Api,
@@ -43,3 +51,17 @@ export const InjectParam = (
     index,
     value: container => retrieve(container.get(Tokens.Parameters))
 }) }
+
+export const InjectAop = () => (
+    object: any,
+    propertyName: string,
+) => {
+    const type = Reflect.getMetadata('design:type', object, propertyName);
+
+    Container.registerHandler({
+        object,
+        propertyName,
+        index: undefined,
+        value: () => instantiate(type),
+    })
+}

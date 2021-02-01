@@ -1,16 +1,35 @@
 
-export class ArgumentError {
+export class HttpCodedError {
+
+    stack?: string;
+
+    constructor(
+        public message: string,
+        public httpCode: number,
+        extra = {},
+    ) {
+        Object.assign(this, extra);
+
+        let stack = new Error().stack;
+        Object.defineProperty(this, 'stack', {
+            value: stack,
+            enumerable: false,
+        })
+    }
+}
+
+export class ArgumentError extends HttpCodedError {
 
     constructor(
         public message: string,
         public httpCode: number = 400,
         extra = {},
     ) {
-        Object.assign(this, extra);
+        super(message, httpCode, extra)
     }
 }
 
-export class AuthenticationRequiredError extends ArgumentError {
+export class AuthenticationRequiredError extends HttpCodedError {
     constructor(
         message = 'authentication required',
         extra = {},
@@ -19,7 +38,7 @@ export class AuthenticationRequiredError extends ArgumentError {
     }
 }
 
-export class AccessDeniedError extends ArgumentError {
+export class AccessDeniedError extends HttpCodedError {
     constructor(
         message = 'insufficient permissions',
         extra = {},
@@ -28,10 +47,20 @@ export class AccessDeniedError extends ArgumentError {
     }
 }
 
-export class ServerTooManyRequestsError extends ArgumentError {
-    httpCode = 529;
+export class ServerTooManyRequestsError extends HttpCodedError {
+    constructor(
+        public message = 'too many requests',
+        extra = {},
+    ) {
+        super(message, 529, extra)
+    }
 }
 
-export class ClientTooManyRequestsError extends ArgumentError {
-    httpCode = 429;
+export class ClientTooManyRequestsError extends HttpCodedError {
+    constructor(
+        public message = 'too many requests',
+        extra = {},
+    ) {
+        super(message, 429, extra)
+    }
 }

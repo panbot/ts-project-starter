@@ -8,7 +8,6 @@ import {
 } from "./framework";
 import LoggerFactory, { ConsoleLogger } from './lib/framework/log';
 import createJWT from "./lib/jwt";
-import modules from './enabled-modules';
 import { ModuleApiLookup } from "./lib/framework/lookup";
 import { AppParameters } from "./app";
 
@@ -22,7 +21,6 @@ Container.set(Tokens.Logger, LoggerFactory(
     ]
 ));
 
-Container.set(Tokens.EnabledModules, modules);
 
 Container.set(Tokens.ModuleApiLookup, new ModuleApiLookup(Module, Api));
 
@@ -32,3 +30,7 @@ Container.set(Tokens.Jwt, jwt);
 Container.set(Tokens.AuthSchemes, {
     Bearer: jwt.decode,
 });
+
+// import modules last to avoid undefined tokens
+import modules from './enabled-modules';
+Container.set(Tokens.EnabledModules, modules);

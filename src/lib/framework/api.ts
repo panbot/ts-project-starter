@@ -102,7 +102,7 @@ export default function (
             if (!opts) throw new ArgumentError(`api "${ctor.name} not found`, 404);
             assertRoles(opts.roles, userContext.roles);
 
-            let runnable = instantiator(ctor);
+            let runnable = Object.create(instantiator(ctor));
             Object.assign(runnable, opts.validateAll(ctor, args, userContext));
 
             return run(runnable);

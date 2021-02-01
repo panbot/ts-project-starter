@@ -9,6 +9,7 @@ export type RouteOptions = {
     httpMethod: HTTPMethods,
     roles?: number,
     path: string,
+    aliases?: string[],
     contentType?:
         'application/json' |
         'application/jsonp' |
@@ -78,14 +79,18 @@ const createAddRoutes = (
         const controller = instantiator(ctor);
 
         for (let [ methodName, options ] of methods) {
-            fastify.route({
-                method: options.httpMethod,
-                url: options.path,
-                handler: createHandler(
-                    options,
-                    ctx => controller[methodName](ctx),
-                ),
-            });
+            const handler = createHandler(
+                options,
+                ctx => controller[methodName](ctx),
+            );
+
+            for (let url of (options.aliases || []).concat(options.path)) {
+                fastify.route({
+                    method: options.httpMethod,
+                    url,
+                    handler,
+                });
+            }
         }
     }
 
