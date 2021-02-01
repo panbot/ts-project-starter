@@ -1,7 +1,6 @@
 import './bootstrap';
 import * as path from 'path';
-import Container from 'typedi';
-import { run } from './framework';
+import { instantiate, run } from './framework';
 
 process.on('uncaughtException', e => console.error(e));
 
@@ -12,7 +11,7 @@ if (!file) {
 }
 
 run(
-    Container.get(require(path.join(process.cwd(), file)).default),
+    instantiate(require(path.join(process.cwd(), file)).default),
 ).catch(e => {
     console.error(e);
     process.exit(1);
