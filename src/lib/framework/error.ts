@@ -3,6 +3,8 @@ export class HttpCodedError {
 
     stack?: string;
 
+    userFriendlyError?: string;
+
     constructor(
         public message: string,
         public httpCode: number,
@@ -48,11 +50,13 @@ export class AccessDeniedError extends HttpCodedError {
 }
 
 export class ServerTooManyRequestsError extends HttpCodedError {
+
     constructor(
         public message = 'too many requests',
-        extra = {},
+        extra: any = {},
     ) {
         super(message, 529, extra)
+        this.userFriendlyError = message;
     }
 }
 

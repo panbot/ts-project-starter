@@ -7,7 +7,7 @@ const RunArgKeys: {
     run: Symbol(),
 }
 
-export interface RunArgFactory<RunArg = any, ProducerOptions = never> {
+export interface RunArgFactory<RunArg = any, ProducerOptions = any> {
     produceRunArgFor(r: Runnable, options?: ProducerOptions): Promise<RunArg>;
     releaseRunArgFor(r: Runnable): Promise<void>;
     aroundRun?<V>(run: () => Promise<V>, r: Runnable): Promise<V>;

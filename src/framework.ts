@@ -9,13 +9,31 @@ import { ModuleApiLookup } from './lib/framework/lookup';
 import { AppParameters } from './app';
 import FrameworkFactory from './lib/framework';
 import * as AOP from './lib/aop';
+import memoize from './lib/memoize';
 
 export const instantiate: Instantiator = type => Container.get(type);
 
-export const { Before, After, Around } = AOP.ProxifiedAopFactory(
-    instantiate,
-    (type, instance) => Container.set(type, instance),
+export const { Before, After, Around } = AOP.InjectiveAopFactory(
+    (object, propertyName, value) => {
+        while (true) {
+            let index = Container.handlers.findIndex(
+                v => v.object == object && v.propertyName == propertyName,
+            );
+            if (index >= 0) Container.handlers.splice(index, 1);
+            else break;
+        }
+
+        Container.registerHandler({
+            object,
+            propertyName,
+            value,
+        });
+    }
 );
+
+// export const { Before, After, Around } = AOP.DestructiveAop();
+
+export const Memoize = memoize(Around);
 
 export const run = CreateRun(instantiate);
 
@@ -51,17 +69,3 @@ export const InjectParam = (
     index,
     value: container => retrieve(container.get(Tokens.Parameters))
 }) }
-
-export const InjectAop = () => (
-    object: any,
-    propertyName: string,
-) => {
-    const type = Reflect.getMetadata('design:type', object, propertyName);
-
-    Container.registerHandler({
-        object,
-        propertyName,
-        index: undefined,
-        value: () => instantiate(type),
-    })
-}

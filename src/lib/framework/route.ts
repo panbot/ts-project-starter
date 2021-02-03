@@ -1,9 +1,9 @@
-import { ArgumentError } from "./error";
 import { Loggable } from "./log";
 import { assertRoles } from "./roles";
 import { ControllerConstructor, UserContextBase } from "./types";
 import { HTTPMethods, FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
 import { Instantiator } from "../types";
+import { HttpCodedError } from "./error";
 
 export type RouteOptions = {
     httpMethod: HTTPMethods,
@@ -174,23 +174,35 @@ const createAddRoutes = (
 
                     reply.code(200);
                 } catch (error) {
-                    if (error instanceof ArgumentError) {
+                    if (error instanceof HttpCodedError) {
                         reply.code(error.httpCode);
-                        workpiece.error = error;
-                        logger.debug({
-                            error,
-                            request: logReq(request),
-                        });
+
+                        if (error.httpCode < 500) {
+                            workpiece.error = error;
+                            logger.debug({
+                                error,
+                                request: logReq(request),
+                            });
+                        } else {
+                            workpiece.error = {
+                                message: error.userFriendlyError || 'something went wrong',
+                            };
+                            logger.crit({
+                                error,
+                                request: logReq(request),
+                            });
+                        }
                     } else {
                         reply.code(500);
                         workpiece.error = {
-                            message: 'server error',
+                            message: 'something went wrong',
                         };
                         logger.crit({
                             error,
                             request: logReq(request),
                         });
                     }
+
                     break;
                 }
             }
@@ -206,12 +218,12 @@ const createAddRoutes = (
             let [ scheme, payload ] = v.split(' ', 2);
 
             let parse = authSchemes[scheme];
-            if (!parse) throw new ArgumentError(`unknown authorization scheme "${scheme}"`);
+            if (!parse) throw new Error(`unknown authorization scheme "${scheme}"`);
 
             try {
                 return parse(payload)
             } catch (e) {
-                throw new ArgumentError(`failed to parse authorization token: ${e.message}`)
+                throw new Error(`failed to parse authorization token: ${e.message}`)
             }
         }
     }

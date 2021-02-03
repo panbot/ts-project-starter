@@ -1,12 +1,12 @@
 import 'reflect-metadata';
-import { AroundPointcut } from './aop';
+import { Around } from './aop';
 
-export default function(
+export default (Around: Around) => (
     timeToLiveInSeconds: number,
-) {
-    const cacheSymbol = Symbol('memoization advisor cache');
+) => Around(
+    async (execute, target, methodName, args) => {
+        const symbol = Around;
 
-    const pointcut: AroundPointcut = async (execution, target, method, args) => {
         if (args.length) throw new Error(`memoization with args not supported`);
 
         type Cache = {
@@ -15,28 +15,26 @@ export default function(
             createdAt?: Date,
         };
 
-        if (Reflect.hasMetadata(cacheSymbol, target[method])) {
-            let v: Cache = Reflect.getMetadata(cacheSymbol, target[method]);
+        if (Reflect.hasMetadata(symbol, target[methodName])) {
+            let v: Cache = Reflect.getMetadata(symbol, target[methodName]);
             if (v.promise) return await v.promise;
-            if (expired(v.createdAt)) return await renew();
+            if (expired(v.createdAt, timeToLiveInSeconds)) return await renew();
             else return v.value;
         } else return await renew();
 
         async function renew() {
-            let promise = execution();
+            let promise = execute();
             let cache: Cache = { promise };
-            Reflect.defineMetadata(cacheSymbol, cache, target[method]);
+            Reflect.defineMetadata(symbol, cache, target[methodName]);
             cache.value = await cache.promise;
             cache.createdAt = new Date();
             delete cache.promise;
             return cache.value
         };
     }
+)
 
-    return pointcut;
-
-    function expired(d: Date | undefined) {
-        if (!d) return true;
-        return new Date().getTime() - d.getTime() > timeToLiveInSeconds * 1000
-    }
+function expired(d: Date | undefined, ttl: number) {
+    if (!d) return true;
+    return new Date().getTime() - d.getTime() > ttl * 1000
 }
