@@ -108,7 +108,7 @@ export const ProxitiveAop = (
         let bag: {
             [ propertyName: string ]: AdvicePointcut[],
         } = {};
-        for (let propertyName of propertyNames) {
+        for (let propertyName of new Set(propertyNames)) {
             bag[propertyName] = getMetadataRegistry<AdvicePointcut>(symbol, target[propertyName]).getOwn();
         }
 

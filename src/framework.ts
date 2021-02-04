@@ -1,5 +1,3 @@
-import 'reflect-metadata';
-import Container, { Token } from 'typedi';
 import { Instantiator } from './lib/types';
 import CreateRun from './lib/runnable';
 import { ModuleConstructor } from './lib/framework/types';
@@ -10,26 +8,32 @@ import { AppParameters } from './app';
 import FrameworkFactory from './lib/framework';
 import * as AOP from './lib/aop';
 import memoize from './lib/memoize';
+import createDependencyInjectionContainer from './lib/dependency-injection';
 
-export const instantiate: Instantiator = type => Container.get(type);
+export const Container = createDependencyInjectionContainer();
+export const instantiate: Instantiator = Container.instantiate;
+export const Inject = Container.Inject;
 
-export const { Before, After, Around } = AOP.InjectiveAopFactory(
-    (object, propertyName, value) => {
-        while (true) {
-            let index = Container.handlers.findIndex(
-                v => v.object == object && v.propertyName == propertyName,
-            );
-            if (index >= 0) Container.handlers.splice(index, 1);
-            else break;
-        }
+export const { Before, After, Around } = AOP.ProxitiveAop(
+    (proxifier) => Container.on('instantiated', proxifier));
 
-        Container.registerHandler({
-            object,
-            propertyName,
-            value,
-        });
-    }
-);
+// export const { Before, After, Around } = AOP.InjectiveAopFactory(
+//     (object, propertyName, value) => {
+//         while (true) {
+//             let index = Container.handlers.findIndex(
+//                 v => v.object == object && v.propertyName == propertyName,
+//             );
+//             if (index >= 0) Container.handlers.splice(index, 1);
+//             else break;
+//         }
+
+//         Container.registerHandler({
+//             object,
+//             propertyName,
+//             value,
+//         });
+//     }
+// );
 
 // export const { Before, After, Around } = AOP.DestructiveAop();
 
@@ -49,23 +53,16 @@ export const {
 export * from './lib/framework/error';
 
 export const Tokens = {
-    Parameters: new Token<AppParameters>('app parameters'),
-    Logger: new Token<Loggable>('logger'),
-    EnabledModules: new Token<ModuleConstructor[]>('enabled modules'),
-    Jwt: new Token<JWT>('auth jwt'),
-    ModuleApiLookup: new Token<ModuleApiLookup>('module api lookup'),
-    AuthSchemes: new Token<{ [ k: string ]: (v: string) => any }>(),
+    Parameters: Container.token<AppParameters>('app_parameters'),
+    Logger: Container.token<Loggable>('logger'),
+    EnabledModules: Container.token<ModuleConstructor[]>('enabled_modules'),
+    Jwt: Container.token<JWT>('auth_jwt'),
+    ModuleApiLookup: Container.token<ModuleApiLookup>('module_api_lookup'),
+    AuthSchemes: Container.token<{ [ k: string ]: (v: string) => any }>('auth_schemes'),
 };
 
 export const InjectParam = (
-    retrieve: (p: AppParameters) => any,
-) => (
-    object: any,
-    propertyName: string,
-    index?: number,
-) => { Container.registerHandler({
-    object,
-    propertyName,
-    index,
-    value: container => retrieve(container.get(Tokens.Parameters))
-}) }
+    retriever: (p: AppParameters) => any,
+) => Container.createInject(
+    (get) => retriever(get(Tokens.Parameters)),
+);

@@ -1,4 +1,3 @@
-import { Service } from "typedi";
 import { Module } from "../framework";
 import { GatewayController } from "./gateway.controller";
 

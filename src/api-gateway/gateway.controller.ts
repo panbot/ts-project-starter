@@ -1,6 +1,5 @@
-import { Inject, Service } from "typedi";
 import { Roles } from "../app";
-import { Module, Route, Api, Tokens } from "../framework";
+import { Module, Route, Api, Tokens, Inject } from "../framework";
 import { ApiOptions } from "../lib/framework/api";
 import { ModuleApiLookup } from "../lib/framework/lookup";
 import { ModuleOptions } from "../lib/framework/module";

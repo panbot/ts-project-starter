@@ -1,8 +1,7 @@
-import "reflect-metadata";
-import Container from "typedi";
 import {
     Api,
     ArgumentError,
+    Container,
     Module,
     Tokens,
 } from "./framework";

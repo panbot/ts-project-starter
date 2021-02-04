@@ -19,6 +19,8 @@ export class UserContext implements UserContextBase {
 
 export type AppParameters = {
 
+    dev: boolean,
+
     logLevel: LogLevel,
 
     secret: string,
