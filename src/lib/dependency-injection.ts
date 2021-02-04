@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { Constructor } from './types';
 import mr from './metadata-registry';
 
-export default function createDependencyInjectionContainer() {
+export default function () {
 
     const MetadataKeys = {
         PropertyName: Symbol('property_name'),

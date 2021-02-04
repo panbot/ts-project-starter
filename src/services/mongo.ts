@@ -1,12 +1,10 @@
 import { RunArgFactory, Runnable } from "../lib/runnable";
 import { MongoEntityManager, ConnectionOptions, createConnection, getConnection } from "typeorm";
-import { Service } from "typedi";
 import { ArgumentError } from "../lib/framework/error";
 import shutdown from "../lib/shutdown";
 import * as mongodb from 'mongodb';
 import { ApiArg, ApiArgValidatable } from "../framework";
 
-@Service()
 export class MongoService implements RunArgFactory<MongoEntityManager> {
 
     async produceRunArgFor(runnable: Runnable, database?: string) {

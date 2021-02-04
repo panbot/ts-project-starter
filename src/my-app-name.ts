@@ -1,9 +1,8 @@
 import './bootstrap';
-import { Inject } from 'typedi';
 
 import shutdown from './lib/shutdown';
 import { Runnable } from './lib/runnable';
-import { InjectParam, Module, Route, Tokens } from './framework';
+import { Inject, InjectParam, Module, Route, Tokens } from './framework';
 import { Loggable } from './lib/framework/log';
 import { JWT } from './lib/jwt';
 import { Controller, ModuleConstructor } from './lib/framework/types';

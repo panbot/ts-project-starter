@@ -1,7 +1,6 @@
 import './bootstrap';
 
-import { Inject } from 'typedi';
-import { Api, Module, Tokens } from './framework';
+import { Api, Inject, Module, Tokens } from './framework';
 import { ModuleApiLookup } from './lib/framework/lookup';
 import { Runnable } from './lib/runnable';
 import { UserContext } from './app';

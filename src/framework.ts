@@ -8,9 +8,9 @@ import { AppParameters } from './app';
 import FrameworkFactory from './lib/framework';
 import * as AOP from './lib/aop';
 import memoize from './lib/memoize';
-import createDependencyInjectionContainer from './lib/dependency-injection';
+import di from './lib/dependency-injection';
 
-export const Container = createDependencyInjectionContainer();
+export const Container = di();
 export const instantiate: Instantiator = Container.instantiate;
 export const Inject = Container.Inject;
 
