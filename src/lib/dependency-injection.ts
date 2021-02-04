@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { Constructor } from './types';
-import { createMetadataRegistry as cmr } from './metadata-registry';
+import mr from './metadata-registry';
 
 export default function createDependencyInjectionContainer() {
 
@@ -64,7 +64,7 @@ export default function createDependencyInjectionContainer() {
             return instance
         } else {
             let instance: T = new ctor(
-                ...cmr<ParameterInjection>(MetadataKeys.Injection, ctor).get().reduce(
+                ...mr<ParameterInjection>(MetadataKeys.Injection, ctor).get().reduce(
                     (pv, cv) => (pv[cv.index] = develop(cv), pv),
                     [] as any[],
                 ));
@@ -183,7 +183,7 @@ export default function createDependencyInjectionContainer() {
                 throw error(`TODO: static property injection`);
             }
             injection.ctor = Reflect.getMetadata('design:type', target, propertyKey);
-            cmr<string>(MetadataKeys.PropertyName, target).add(propertyKey);
+            mr<string>(MetadataKeys.PropertyName, target).add(propertyKey);
         } else {
             throw error(`unsupported decorator parameters`);
         }
@@ -231,15 +231,15 @@ export default function createDependencyInjectionContainer() {
                      ].join(', '))
                 }
         }
-        cmr(MetadataKeys.Injection, target, propertyKey).add(injection);
+        mr(MetadataKeys.Injection, target, propertyKey).add(injection);
     }
 
     function getPropertyInjections(target: any) {
         let ret = new Map<string, Injection>();
 
-        const properties = cmr<string>(MetadataKeys.PropertyName, target).getUpChain();
+        const properties = mr<string>(MetadataKeys.PropertyName, target).getUpChain();
         for (let property of properties) {
-            const injections = cmr<Injection>(MetadataKeys.Injection, target, property).get();
+            const injections = mr<Injection>(MetadataKeys.Injection, target, property).get();
             switch (injections.length) {
                 case 1:
                 ret.set(property, injections[0]);

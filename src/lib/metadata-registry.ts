@@ -1,5 +1,5 @@
 
-export function createMetadataRegistry<T>(
+export default function <T>(
     key: any,
     target: Object,
     property: string | undefined = undefined,

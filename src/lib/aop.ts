@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import mr from './metadata-registry';
 
 export function AopFactory(
     advice: (
@@ -80,7 +81,7 @@ export const InjectiveAopFactory = (
     propertyName: string,
 ) => {
     const original = checkIsFunction(prototype, propertyName);
-    let pointcuts = getMetadataRegistry<AdvicePointcut>(InjectiveAopFactory, original);
+    let pointcuts = mr<AdvicePointcut>(InjectiveAopFactory, original);
     pointcuts.add(pointcut);
 
     inject(
@@ -100,7 +101,7 @@ export const ProxitiveAop = (
     const symbol = InjectiveAopFactory;
 
     use((target: any) => {
-        let propertyNames = getMetadataRegistry<string>(symbol, target).getUpChain();
+        let propertyNames = mr<string>(symbol, target).getUpChain();
         if (!propertyNames.length) return target;
 
         let proxy = Object.create(target);
@@ -109,7 +110,7 @@ export const ProxitiveAop = (
             [ propertyName: string ]: AdvicePointcut[],
         } = {};
         for (let propertyName of new Set(propertyNames)) {
-            bag[propertyName] = getMetadataRegistry<AdvicePointcut>(symbol, target[propertyName]).getOwn();
+            bag[propertyName] = mr<AdvicePointcut>(symbol, target[propertyName]).getOwn();
         }
 
         for (let propertyName of Object.keys(bag)) {
@@ -133,8 +134,8 @@ export const ProxitiveAop = (
     ) => {
         const original = checkIsFunction(prototype, propertyName);
 
-        getMetadataRegistry<AdvicePointcut>(symbol, original).add(pointcut);
-        getMetadataRegistry<string>(symbol, prototype).add(propertyName);
+        mr<AdvicePointcut>(symbol, original).add(pointcut);
+        mr<string>(symbol, prototype).add(propertyName);
     })
 }
 
@@ -144,39 +145,6 @@ function checkIsFunction(o: any, k: any): (...args: any[]) => any {
     }
 
     return o[k];
-}
-
-function getMetadataRegistry<T>(
-    key: any,
-    target: Object,
-    property?: string | symbol,
-) {
-    let args = [ target, property ];
-    return {
-        add(metadata: T) {
-            let list: T[] = Reflect.getOwnMetadata.call(Reflect, key, ...args) || [];
-            list.push(metadata);
-            Reflect.defineMetadata.call(Reflect, key, list, ...args);
-        },
-        get(): T[] {
-            return Reflect.getMetadata.call(Reflect, key, ...args) || []
-        },
-        getOwn(): T[] {
-            return Reflect.getOwnMetadata.call(Reflect, key, ...args) || []
-        },
-        getUpChain(): T[] {
-            let ret: T[] = [];
-
-            let o = target;
-            while (o) {
-                let args = [ o, property ];
-                ret = ret.concat(Reflect.getOwnMetadata.call(Reflect, key, ...args) || []);
-                o = Reflect.getPrototypeOf(o);
-            }
-
-            return ret;
-        }
-    }
 }
 
 const wrap = (
