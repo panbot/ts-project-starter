@@ -15,12 +15,12 @@ export function AopFactory(
         prototype: any,
         propertyName: string,
         descriptor: PropertyDescriptor,
-    ) => { advice(
+    ) => void advice(
         (execute, target, args) => ( beforePointcut(target, propertyName, args), execute() ),
         prototype,
         propertyName,
         descriptor,
-    ) };
+    );
 
     const After = (
         afterPointcut: (result: any, target: any, method: string, args: any[]) => any,
@@ -28,7 +28,7 @@ export function AopFactory(
         prototype: any,
         propertyName: string,
         descriptor: PropertyDescriptor,
-    ) => { advice(
+    ) => void advice(
         (execute, target, args) => afterPointcut(
             execute(),
             target, propertyName, args,
@@ -36,7 +36,7 @@ export function AopFactory(
         prototype,
         propertyName,
         descriptor,
-    ) };
+    );
 
     const Around = (
         aroundPointcut: (execute: () => any, target: any, method: string, args: any[]) => any,
@@ -44,7 +44,7 @@ export function AopFactory(
         prototype: any,
         propertyName: string,
         descriptor: PropertyDescriptor,
-    ) => { advice(
+    ) => void advice(
         (execute, target, args) => aroundPointcut(
             execute,
             target, propertyName, args,
@@ -52,7 +52,7 @@ export function AopFactory(
         prototype,
         propertyName,
         descriptor,
-    ) };
+    );
 
     return { Before, After, Around }
 }

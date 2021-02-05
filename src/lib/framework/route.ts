@@ -31,12 +31,12 @@ export type RouteContext = {
 };
 
 type Workpiece = { result: any, error: any, userContext: UserContextBase };
-type Worker = (
+type Worker = (env: {
     workpiece: Workpiece,
     request: FastifyRequest,
     reply: FastifyReply,
     logger: Loggable,
-) => any;
+}) => void | Promise<void>;
 
 export default function (
     instantiator: Instantiator,
@@ -102,9 +102,7 @@ const createAddRoutes = (
 
         let contentType = options.contentType;
         if (options.contentType) {
-            //                         ↓ -------- DO NOT REMOVE THESE BRACES --------- ↓
-            pipeline.push((...args) => { args[2].type(contentType + '; charset=utf-8') });
-            //                         ↑ -------- DO NOT REMOVE THESE BRACES --------- ↑
+            pipeline.push(({ reply }) => void reply.type(contentType + '; charset=utf-8'));
         }
 
         pipeline.push(extractUserContext(req => req.headers['authorization']));
@@ -116,40 +114,39 @@ const createAddRoutes = (
 
         if (options.roles) {
             let requiredRoles = options.roles;
-            pipeline.push(({ userContext }) => assertRoles(requiredRoles, userContext.roles));
+            pipeline.push(({ workpiece }) => void assertRoles(requiredRoles, workpiece.userContext.roles));
         }
 
-        pipeline.push(
-            async (workpiece, request, reply) =>
-                workpiece.result = await runner({
-                    request,
-                    reply,
-                    userContext: workpiece.userContext,
-                    params: request.params as any, // @FIXME
-                    body: request.body,
-                    logger,
-                })
-        );
+        pipeline.push(async ({workpiece, request, reply, logger}) => {
+            workpiece.result = await runner({
+                request,
+                reply,
+                userContext: workpiece.userContext,
+                params: request.params as any, // @FIXME
+                body: request.body,
+                logger,
+            })
+        });
 
         switch (contentType) {
             case 'application/json':
             return assemble(
                 pipeline,
-                ({ result, error }, req, reply) => reply.send(JSON.stringify(error || result)),
+                ({workpiece: { result, error }, reply}) => void reply.send(JSON.stringify(error || result)),
             )
 
             case 'application/jsonp':
             return assemble(
                 pipeline,
-                ({ result, error }, req, reply) => reply.send(
-                    `${(req.query as any).jsonp || '_'}(${JSON.stringify(error || result)})`,
+                ({workpiece: { result, error }, request, reply}) => void reply.send(
+                    `${(request.query as any).jsonp || '_'}(${JSON.stringify(error || result)})`,
                 ),
             )
 
             default:
             return assemble(
                 pipeline,
-                (workpiece, req, reply) => reply.send(
+                ({ workpiece, reply }) => void reply.send(
                     workpiece.error ? stringifyError(workpiece.error) : workpiece.result,
                 ),
             )
@@ -170,7 +167,7 @@ const createAddRoutes = (
             };
             for (let worker of pipeline) {
                 try {
-                    await worker(workpiece, request, reply, logger);
+                    await worker({ workpiece, request, reply, logger });
 
                     reply.code(200);
                 } catch (error) {
@@ -207,7 +204,7 @@ const createAddRoutes = (
                 }
             }
 
-            terminator(workpiece, request, reply, logger);
+            terminator({ workpiece, request, reply, logger });
         }
     }
 
@@ -231,14 +228,14 @@ const createAddRoutes = (
     function extractUserContext(
         extractor: (req: FastifyRequest) => string | undefined,
     ): Worker {
-        return (workpiece, req, reply, logger) => { try {
+        return ({ workpiece, request, logger }) => { try {
             workpiece.userContext =
                 instantiateUserContext(
-                    parseAuthToken(extractor(req)));
+                    parseAuthToken(extractor(request)));
         } catch (error) {
             logger.debug({
                 error,
-                request: logReq(req),
+                request: logReq(request),
             });
         } }
     }
