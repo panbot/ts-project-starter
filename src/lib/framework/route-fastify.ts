@@ -1,5 +1,5 @@
 import { FastifyRequest, FastifyReply, HTTPMethods } from "fastify";
-import { HttpCodedError } from "./error";
+import { defaultErrorHandler } from "./error";
 import { Loggable, createLoggerProxy } from "./log";
 import { assertRoles } from "./roles";
 import { UserContextBase, RouteContext, RouteOptions, RouteAdapter } from "./types";
@@ -63,7 +63,8 @@ implements RouteAdapter
             let key = options.queryKeyForAuthentication;
             getUserContext = after(
                 getUserContext,
-                (userContext, req, logger) => this.extractUserContext((req.query as any)[key], logger) || userContext,
+                (userContext, req, logger) => this.extractUserContext(
+                    (req.query as any)[key], logger) || userContext,
             );
         }
 
@@ -183,31 +184,6 @@ function formatFactory(ct: string): Record<'result' | 'error', (v: any) => any> 
                 JSON.stringify(v, undefined, 4),
             ].join('\n'),
         }
-    }
-}
-
-function defaultErrorHandler(error: any, logger?: Loggable) {
-    let statusCode: number;
-    let userFriendlyError: any;
-
-    if (error instanceof HttpCodedError) {
-        statusCode = error.httpCode;
-        if (statusCode < 500) userFriendlyError = error;
-        else userFriendlyError = new Error(error.userFriendlyMessage);
-    } else {
-        statusCode = 500;
-        userFriendlyError = new Error('something went wrong');
-    }
-
-    if (statusCode < 500) {
-        logger?.debug(error)
-    } else {
-        logger?.crit(error);
-    }
-
-    return {
-        statusCode,
-        userFriendlyError,
     }
 }
 

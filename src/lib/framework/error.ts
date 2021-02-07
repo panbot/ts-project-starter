@@ -1,3 +1,4 @@
+import { Loggable } from "./log";
 
 export class HttpCodedError {
 
@@ -67,5 +68,30 @@ export class ClientTooManyRequestsError extends ArgumentError {
         extra = {},
     ) {
         super(message, 429, extra)
+    }
+}
+
+export function defaultErrorHandler(error: any, logger?: Loggable) {
+    let statusCode: number;
+    let userFriendlyError: any;
+
+    if (error instanceof HttpCodedError) {
+        statusCode = error.httpCode;
+        if (statusCode < 500) userFriendlyError = error;
+        else userFriendlyError = new Error(error.userFriendlyMessage);
+    } else {
+        statusCode = 500;
+        userFriendlyError = new Error('something went wrong');
+    }
+
+    if (statusCode < 500) {
+        logger?.debug(error)
+    } else {
+        logger?.crit(error);
+    }
+
+    return {
+        statusCode,
+        userFriendlyError,
     }
 }
