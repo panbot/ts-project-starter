@@ -3,7 +3,7 @@ export class HttpCodedError {
 
     stack?: string;
 
-    userFriendlyError?: string;
+    get userFriendlyMessage() { return 'something went wrong' }
 
     constructor(
         public message: string,
@@ -22,6 +22,8 @@ export class HttpCodedError {
 
 export class ArgumentError extends HttpCodedError {
 
+    get userFriendlyMessage() { return this.message }
+
     constructor(
         public message: string,
         public httpCode: number = 400,
@@ -31,7 +33,7 @@ export class ArgumentError extends HttpCodedError {
     }
 }
 
-export class AuthenticationRequiredError extends HttpCodedError {
+export class AuthenticationRequiredError extends ArgumentError {
     constructor(
         message = 'authentication required',
         extra = {},
@@ -40,7 +42,7 @@ export class AuthenticationRequiredError extends HttpCodedError {
     }
 }
 
-export class AccessDeniedError extends HttpCodedError {
+export class AccessDeniedError extends ArgumentError {
     constructor(
         message = 'insufficient permissions',
         extra = {},
@@ -49,18 +51,17 @@ export class AccessDeniedError extends HttpCodedError {
     }
 }
 
-export class ServerTooManyRequestsError extends HttpCodedError {
+export class ServerTooManyRequestsError extends ArgumentError {
 
     constructor(
         public message = 'too many requests',
         extra: any = {},
     ) {
         super(message, 529, extra)
-        this.userFriendlyError = message;
     }
 }
 
-export class ClientTooManyRequestsError extends HttpCodedError {
+export class ClientTooManyRequestsError extends ArgumentError {
     constructor(
         public message = 'too many requests',
         extra = {},

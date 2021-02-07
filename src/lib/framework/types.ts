@@ -1,6 +1,6 @@
 import { Constructor } from "../types";
 import { Runnable } from "../runnable";
-import { HTTPMethods } from "fastify";
+import { Loggable } from "./log";
 
 export type Module = { init?: () => Promise<void> };
 export type ModuleConstructor = Constructor<Module>;
@@ -52,3 +52,35 @@ export type UserContextBase = {
 export type Controller = any;
 
 export type ControllerConstructor = Constructor<Controller>;
+
+export type RouteOptions = {
+    httpMethod: string,
+    roles?: number,
+    path: string,
+    aliases?: string[],
+    contentType?:
+        'application/json' |
+        // 'application/jsonp' |
+        'text/html' |
+        'text/plain'
+    ,
+    queryKeyForAuthentication?: string,
+};
+
+export type RouteContext<Request = unknown, Reply = unknown> = {
+    params: {
+        [ key: string ]: any,
+    },
+    body: any,
+    request: Request,
+    reply: Reply,
+    userContext: UserContextBase,
+    logger: Loggable,
+};
+
+export interface RouteAdapter {
+    addRoute (
+        options: RouteOptions,
+        runner: (rc: RouteContext) => Promise<any>,
+    ): void;
+}

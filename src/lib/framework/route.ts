@@ -1,42 +1,9 @@
-import { Loggable } from "./log";
-import { assertRoles } from "./roles";
-import { ControllerConstructor, UserContextBase } from "./types";
-import { HTTPMethods, FastifyRequest, FastifyReply, FastifyInstance } from "fastify";
+import {
+    ControllerConstructor,
+    RouteAdapter,
+    RouteOptions,
+} from "./types";
 import { Instantiator } from "../types";
-import { HttpCodedError } from "./error";
-
-export type RouteOptions = {
-    httpMethod: HTTPMethods,
-    roles?: number,
-    path: string,
-    aliases?: string[],
-    contentType?:
-        'application/json' |
-        'application/jsonp' |
-        'text/html' |
-        'text/plain'
-    ,
-    queryKeyForAuthentication?: string,
-};
-
-export type RouteContext = {
-    params: {
-        [ key: string ]: any,
-    },
-    body: any,
-    request: FastifyRequest,
-    reply: FastifyReply,
-    userContext: UserContextBase,
-    logger: Loggable,
-};
-
-type Workpiece = { result: any, error: any, userContext: UserContextBase };
-type Worker = (env: {
-    workpiece: Workpiece,
-    request: FastifyRequest,
-    reply: FastifyReply,
-    logger: Loggable,
-}) => void | Promise<void>;
 
 export default function (
     instantiator: Instantiator,
@@ -58,203 +25,25 @@ export default function (
     }
 
     return Object.assign(Route, {
-        addRoutes: createAddRoutes(routes, instantiator),
-    })
-}
+        addRoutes(
+            controllers: ControllerConstructor[],
+            routeAdapter: RouteAdapter,
+        ) {
+            for (let ctor of controllers) {
+                const methods = routes.get(ctor);
+                if (!methods) throw new Error(`routes for controller "${ctor.name}" not found`);
 
-const createAddRoutes = (
-    routes: Map<ControllerConstructor, Map<string, RouteOptions>>,
-    instantiator: Instantiator,
-) => (
-    controllers: ControllerConstructor[],
-    fastify: FastifyInstance,
-    instantiateUserContext: (data: any) => UserContextBase,
-    authSchemes: Record<string, (payload: string) => any>,
-    logger: Loggable,
-) => {
-    for (let ctor of controllers) {
-        const methods = routes.get(ctor);
-        if (!methods) throw new Error(`routes for controller "${ctor.name}" not found`);
+                const controller = instantiator(ctor);
 
-        const controller = instantiator(ctor);
-
-        for (let [ methodName, options ] of methods) {
-            const handler = createHandler(
-                options,
-                ctx => controller[methodName](ctx),
-            );
-
-            for (let url of (options.aliases || []).concat(options.path)) {
-                fastify.route({
-                    method: options.httpMethod,
-                    url,
-                    handler,
-                });
-            }
-        }
-    }
-
-    function createHandler(
-        options: RouteOptions,
-        runner: (rc: RouteContext) => Promise<any>,
-    ) {
-        let pipeline: Worker[] = [];
-
-        let contentType = options.contentType;
-        if (options.contentType) {
-            pipeline.push(({ reply }) => void reply.type(contentType + '; charset=utf-8'));
-        }
-
-        pipeline.push(extractUserContext(req => req.headers['authorization']));
-
-        if (options.queryKeyForAuthentication) {
-            let key = options.queryKeyForAuthentication;
-            pipeline.push(extractUserContext(req => (req.query as any)[key]));
-        }
-
-        if (options.roles) {
-            let requiredRoles = options.roles;
-            pipeline.push(({ workpiece }) => void assertRoles(requiredRoles, workpiece.userContext.roles));
-        }
-
-        pipeline.push(async ({workpiece, request, reply, logger}) => {
-            workpiece.result = await runner({
-                request,
-                reply,
-                userContext: workpiece.userContext,
-                params: request.params as any, // @FIXME
-                body: request.body,
-                logger,
-            })
-        });
-
-        switch (contentType) {
-            case 'application/json':
-            return assemble(
-                pipeline,
-                ({workpiece: { result, error }, reply}) => void reply.send(JSON.stringify(error || result)),
-            )
-
-            case 'application/jsonp':
-            return assemble(
-                pipeline,
-                ({workpiece: { result, error }, request, reply}) => void reply.send(
-                    `${(request.query as any).jsonp || '_'}(${JSON.stringify(error || result)})`,
-                ),
-            )
-
-            default:
-            return assemble(
-                pipeline,
-                ({ workpiece, reply }) => void reply.send(
-                    workpiece.error ? stringifyError(workpiece.error) : workpiece.result,
-                ),
-            )
-        }
-    }
-
-    function assemble(
-        pipeline: Worker[],
-        terminator: Worker,
-    ) { return async (
-            request: FastifyRequest,
-            reply: FastifyReply,
-        ) => {
-            let workpiece: Workpiece = {
-                result: null,
-                error: null,
-                userContext: instantiateUserContext(null),
-            };
-            for (let worker of pipeline) {
-                try {
-                    await worker({ workpiece, request, reply, logger });
-
-                    reply.code(200);
-                } catch (error) {
-                    if (error instanceof HttpCodedError) {
-                        reply.code(error.httpCode);
-
-                        if (error.httpCode < 500) {
-                            workpiece.error = error;
-                            logger.debug({
-                                error,
-                                request: logReq(request),
-                            });
-                        } else {
-                            workpiece.error = {
-                                message: error.userFriendlyError || 'something went wrong',
-                            };
-                            logger.crit({
-                                error,
-                                request: logReq(request),
-                            });
-                        }
-                    } else {
-                        reply.code(500);
-                        workpiece.error = {
-                            message: 'something went wrong',
-                        };
-                        logger.crit({
-                            error,
-                            request: logReq(request),
-                        });
+                for (let [ methodName, options ] of methods) {
+                    for (let url of (options.aliases || []).concat(options.path)) {
+                        routeAdapter.addRoute(
+                            options,
+                            ctx => controller[methodName](ctx),
+                        );
                     }
-
-                    break;
                 }
             }
-
-            terminator({ workpiece, request, reply, logger });
-        }
-    }
-
-    function parseAuthToken(
-        v: string | undefined,
-    ) {
-        if (v) {
-            let [ scheme, payload ] = v.split(' ', 2);
-
-            let parse = authSchemes[scheme];
-            if (!parse) throw new Error(`unknown authorization scheme "${scheme}"`);
-
-            try {
-                return parse(payload)
-            } catch (e) {
-                throw new Error(`failed to parse authorization token: ${e.message}`)
-            }
-        }
-    }
-
-    function extractUserContext(
-        extractor: (req: FastifyRequest) => string | undefined,
-    ): Worker {
-        return ({ workpiece, request, logger }) => { try {
-            workpiece.userContext =
-                instantiateUserContext(
-                    parseAuthToken(extractor(request)));
-        } catch (error) {
-            logger.debug({
-                error,
-                request: logReq(request),
-            });
-        } }
-    }
-
-}
-
-
-function stringifyError(error: any) {
-    return [
-        error.message,
-        JSON.stringify(error, undefined, 4),
-    ].join('\n')
-}
-
-function logReq(req: FastifyRequest) {
-    return {
-        method: req.method,
-        url: req.url,
-        body: req.body,
-        headers: req.headers,
-    }
+        },
+    })
 }

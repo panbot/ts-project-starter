@@ -4,20 +4,17 @@ import shutdown from './lib/shutdown';
 import { Runnable } from './lib/runnable';
 import { Inject, InjectParam, Module, Route, Tokens } from './framework';
 import { Loggable } from './lib/framework/log';
-import { JWT } from './lib/jwt';
 import { Controller, ModuleConstructor } from './lib/framework/types';
 import { Constructor } from './lib/types';
 import fastify from "fastify";
 import { deserialize } from "bson";
 import { UserContext } from './app';
+import { FastifyHandlerFactory } from './lib/framework/route-fastify';
 
 export default class implements Runnable {
 
     @InjectParam(p => p.fastify.listen)
     listen: any;
-
-    @Inject(Tokens.Jwt)
-    jwt: JWT;
 
     @Inject(Tokens.Logger)
     logger: Loggable;
@@ -62,20 +59,22 @@ export default class implements Runnable {
 
         Route.addRoutes(
             this.controllers,
-            server,
-            v => new UserContext(v),
-            this.authSchemes,
-            this.logger,
+            new FastifyHandlerFactory(
+                server,
+                v => new UserContext(v),
+                this.authSchemes,
+                this.logger,
+            ),
         );
 
         server.listen(
             this.listen,
             (err, address) => {
-                if (err) { console.error(err); return }
+                if (err) { this.logger.crit(err); return }
 
-                console.info(`fastify listening on ${address}`);
+                this.logger.info('fastify listening on', address);
 
-                shutdown.register(() => server.close(() => console.info('fastify closed')));
+                shutdown.register(() => server.close(() => this.logger.info('fastify closed')));
             },
         );
     }

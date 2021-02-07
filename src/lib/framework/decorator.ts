@@ -23,7 +23,7 @@ export function createRegistryDecorator<
     const has = (ctor: Decoratee) => registry.has(ctor);
     const get = (ctor: Decoratee) => {
         let options = registry.get(ctor);
-        if (!options) throw new Error(`options for ${ctor.name} not found`);
+        if (!options) throw new Error(`options for "${ctor.name}" not found`);
         return options;
     }
 

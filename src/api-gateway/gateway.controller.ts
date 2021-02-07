@@ -3,8 +3,7 @@ import { Module, Route, Api, Tokens, Inject } from "../framework";
 import { ApiOptions } from "../lib/framework/api";
 import { ModuleApiLookup } from "../lib/framework/lookup";
 import { ModuleOptions } from "../lib/framework/module";
-import { RouteContext } from "../lib/framework/route";
-import { ModuleConstructor, ApiConstructor } from "../lib/framework/types";
+import { ModuleConstructor, ApiConstructor, RouteContext } from "../lib/framework/types";
 
 export class GatewayController {
 
@@ -46,12 +45,17 @@ export class GatewayController {
     })
     docForAll() {
         return {
-            roles: Roles,
+            roles: (Object.keys(Roles) as (keyof typeof Roles)[])
+                .filter(v => typeof Roles[v] != 'function')
+                .reduce(
+                    (pv, cv) => ( pv[cv] = Roles[cv], pv ),
+                    {} as any,
+                ),
             apis: this.modules
                 .map(m => this.describeModule(m, Module.get(m)))
                 .reduce(
                     (pv, cv) => pv.concat(cv),
-                    []
+                    [],
                 ),
         }
     }

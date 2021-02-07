@@ -14,28 +14,8 @@ export const Container = di();
 export const instantiate: Instantiator = Container.instantiate;
 export const Inject = Container.Inject;
 
-export const { Before, After, Around } = AOP.ProxitiveAop(
-    (proxifier) => Container.on('instantiated', proxifier));
-
-// export const { Before, After, Around } = AOP.InjectiveAopFactory(
-//     (object, propertyName, value) => {
-//         while (true) {
-//             let index = Container.handlers.findIndex(
-//                 v => v.object == object && v.propertyName == propertyName,
-//             );
-//             if (index >= 0) Container.handlers.splice(index, 1);
-//             else break;
-//         }
-
-//         Container.registerHandler({
-//             object,
-//             propertyName,
-//             value,
-//         });
-//     }
-// );
-
-// export const { Before, After, Around } = AOP.DestructiveAop();
+export const { Before, After, Around } = AOP.ProxitiveAop((proxifier) =>
+    Container.on('instantiated', proxifier));
 
 export const Memoize = memoize(Around);
 

@@ -74,9 +74,9 @@ export default function <R extends Record<string, number>>(extendedRoles: R) {
         }
     }
 
-    return Object.assign(Roles, {
+    return Object.assign({
         checkRoles,
         assertRoles,
         nameRoles,
-    })
+    }, Roles);
 }

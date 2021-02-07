@@ -61,3 +61,30 @@ export class ConsoleLogger implements Loggable {
         console.log(new Date().toLocaleString(), ...data);
     }
 }
+
+export function createLoggerProxy(
+    logger: Loggable,
+    change: (v: any[]) => any[],
+) {
+    return new Proxy(logger, {
+        get(target, p, receiver) {
+            if (
+                p == 'debug' ||
+                p == 'info' ||
+                p == 'warn' ||
+                p == 'crit' ||
+                p == 'log'
+            ) {
+                return new Proxy(target[p], {
+                    apply(target, thisArg, args: any[]) {
+                        Reflect.apply(target, thisArg, change(args));
+                    },
+                });
+            } else {
+                return Reflect.get(target, p, receiver);
+            }
+        },
+    })
+}
+
+
