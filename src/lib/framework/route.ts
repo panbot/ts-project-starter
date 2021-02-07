@@ -33,16 +33,8 @@ export default function (
                 const methods = routes.get(ctor);
                 if (!methods) throw new Error(`routes for controller "${ctor.name}" not found`);
 
-                const controller = instantiator(ctor);
-
-                for (let [ methodName, options ] of methods) {
-                    for (let url of (options.aliases || []).concat(options.path)) {
-                        routeAdapter.addRoute(
-                            options,
-                            ctx => controller[methodName](ctx),
-                        );
-                    }
-                }
+                const ctl = instantiator(ctor);
+                methods.forEach((v, k) => routeAdapter.addRoute(v, ctx => ctl[k](ctx)));
             }
         },
     })

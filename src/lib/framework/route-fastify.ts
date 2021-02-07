@@ -191,3 +191,5 @@ const after = <F extends (...args: any) => any>(
     func: F,
     advice: (result: ReturnType<F>, ...args: Parameters<F>) => ReturnType<F>,
 ) => (...args: any) => advice(func(...args), ...args);
+
+export type FastifyRouteContext = RouteContext<FastifyRequest, FastifyReply>;
