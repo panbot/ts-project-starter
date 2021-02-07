@@ -71,16 +71,21 @@ export default function () {
             // immediately set() to prevent infinite loop
             instances.set(ctor, instance);
 
-            for (let [ property, injection ] of getPropertyInjections(ctor.prototype)) {
-                let value = develop(injection);
-                Reflect.defineProperty(instance, property, { value });
-            }
+            try {
+                for (let [ property, injection ] of getPropertyInjections(ctor.prototype)) {
+                    let value = develop(injection);
+                    Reflect.defineProperty(instance, property, { value });
+                }
 
-            for (let handler of eventHandlers.instantiated) {
-                instance = handler(instance);
-            }
+                for (let handler of eventHandlers.instantiated) {
+                    instance = handler(instance);
+                }
 
-            return instance;
+                return instance;
+            } catch (e) {
+                instances.delete(ctor);
+                throw e;
+            }
         }
     }
 
@@ -118,7 +123,7 @@ export default function () {
             }
         },
 
-        token: <T>(name: string): TokenType<T> => new Token<T>(name),
+        token: <T>(name: string, multiple: boolean = false): TokenType<T> => new Token<T>(name, multiple),
 
         on,
     }
@@ -256,7 +261,10 @@ export default function () {
 }
 
 class Token<T> {
-    constructor(public name: string) {
+    constructor(
+        public name: string,
+        public multiple: boolean,
+    ) {
 
     }
 
