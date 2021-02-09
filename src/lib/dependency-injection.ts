@@ -9,7 +9,13 @@ export default function () {
         Injection: Symbol('injection'),
     }
 
-    let instances = new Map<any, any>();
+    type ServiceKey = string | Token<any> | Constructor<any>;
+    let services = new Map<ServiceKey, {
+        instance?: any,
+        factory?: (getter: typeof get) => any,
+        ctor?: Constructor<any>,
+        multiple?: ServiceKey[],
+    }>();
     type Events = 'instantiated';
     let eventHandlers: Record<Events, Function[]> = {
         instantiated: [],
@@ -38,54 +44,89 @@ export default function () {
         );
     }
 
+    function Service(name: string): Function;
+    function Service(token: TokenType<any>): Function;
+    function Service() {
+        const arg = arguments[0];
+
+        return (ctor: Constructor<any>) => {
+            if (typeof arg == 'string') {
+                services.set(arg, { ctor });
+            } else if (arg instanceof Token) {
+                if (arg.multiple) {
+                    let def = services.get(arg);
+                    if (def) {
+                        def.multiple!.push(ctor);
+                    } else {
+                        services.set(arg, { multiple: [ ctor ] })
+                    }
+                } else {
+                    services.set(arg, { ctor });
+                }
+           }
+        }
+    }
+
     function get(name: string): any;
     function get<T>(type: Constructor<T>): T;
     function get<T>(token: TokenType<T>): T;
     function get(arg: any) {
-        if (typeof arg == 'function') {
-            return getOrInstantiate(arg);
-        } else {
-            let instance = instances.get(arg);
-            if (!instance) throw new Error(`instance for ${arg} not found`);
-            return instance;
+        let v = services.get(arg);
+        if (!v) {
+            if (typeof arg == 'function') { // a construstor
+                return instantiate(arg);
+            } else {
+                throw new Error(`service "${arg}" not found`);
+            }
         }
+
+        if (v.instance) return v.instance;
+
+        if (v.factory) {
+            v.instance = v.factory(get);
+        } else if (v.ctor) {
+            v.instance = instantiate(v.ctor);
+        } else if (v.multiple) {
+            v.instance = v.multiple.map(get);
+        } else {
+            throw new Error(`unable to create service instance due to exhaustion of options`);
+        }
+
+        return v.instance
     }
 
     function set(name: string, instance: any): void;
     function set<T>(type: Constructor<T>, instance: any): void;
     function set<T>(token: TokenType<T>, instance: T): void;
     function set(arg: any, instance: any) {
-        instances.set(arg, instance);
+        services.set(arg, { instance });
     }
 
-    function getOrInstantiate<T extends Object>(ctor: Constructor<T>) {
-        let instance = instances.get(ctor);
-        if (instance) {
-            return instance
-        } else {
-            let instance: T = new ctor(
-                ...mr<ParameterInjection>(MetadataKeys.Injection, ctor).get().reduce(
-                    (pv, cv) => (pv[cv.index] = develop(cv), pv),
-                    [] as any[],
-                ));
-            // immediately set() to prevent infinite loop
-            instances.set(ctor, instance);
+    function instantiate(ctor: Constructor<any>) {
+        let instance = new ctor(
+            ...mr<ParameterInjection>(MetadataKeys.Injection, ctor).get().reduce(
+                (pv, cv) => (pv[cv.index] = develop(cv), pv),
+                [] as any[],
+            ));
 
-            try {
-                for (let [ property, injection ] of getPropertyInjections(ctor.prototype)) {
-                    let value = develop(injection);
-                    Reflect.defineProperty(instance, property, { value });
-                }
-
-                for (let handler of eventHandlers.instantiated) {
-                    instance = handler(instance);
-                }
-
-                return instance;
-            } catch (e) {
-                instances.delete(ctor);
-                throw e;
+        try {
+            for (let handler of eventHandlers.instantiated) {
+                instance = handler(instance);
             }
+
+            // to prevent infinite loop
+            services.set(ctor, { instance });
+
+            for (let [ property, injection ] of getPropertyInjections(ctor.prototype)) {
+                let value = develop(injection);
+                Reflect.defineProperty(instance, property, { value });
+            }
+
+
+            return instance
+        } catch (e) {
+            services.delete(ctor);
+            throw e;
         }
     }
 
@@ -102,9 +143,12 @@ export default function () {
 
     return {
         Inject,
+        Service,
+
         get,
         set,
-        instantiate: getOrInstantiate,
+
+        instantiate,
         createInject(factory: (getter: typeof get) => any) {
             return function (
                 target: Object,
@@ -136,9 +180,9 @@ export default function () {
         } else if (injection.token) {
             return get(injection.token);
         } else if (injection.type) {
-            return getOrInstantiate(injection.type());
+            return get(injection.type());
         } else if (injection.ctor) {
-            return getOrInstantiate(injection.ctor);
+            return get(injection.ctor);
         } else {
             throw new Error([
                 `cannot develop injection,`,

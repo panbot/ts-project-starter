@@ -13,6 +13,7 @@ import di from './lib/dependency-injection';
 export const Container = di();
 export const instantiate: Instantiator = Container.instantiate;
 export const Inject = Container.Inject;
+export const Service = Container.Service;
 
 export const { Before, After, Around } = AOP.ProxitiveAop((proxifier) =>
     Container.on('instantiated', proxifier));
