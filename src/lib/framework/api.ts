@@ -82,7 +82,6 @@ export class ApiOptions {
     }
 }
 
-
 export default function (
     instantiator: Instantiator,
 ) {
