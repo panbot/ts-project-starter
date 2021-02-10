@@ -11,7 +11,7 @@ import memoize from './lib/memoize';
 import di from './lib/dependency-injection';
 
 export const Container = di();
-export const instantiate: Instantiator = Container.instantiate;
+export const instantiate: Instantiator = Container.get;
 export const Inject = Container.Inject;
 export const Service = Container.Service;
 

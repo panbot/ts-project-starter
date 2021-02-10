@@ -122,7 +122,6 @@ export default function () {
                 Reflect.defineProperty(instance, property, { value });
             }
 
-
             return instance
         } catch (e) {
             services.delete(ctor);
