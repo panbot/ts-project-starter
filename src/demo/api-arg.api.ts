@@ -188,11 +188,18 @@ export class DemoApiArgBop implements Runnable {
     })
     bop: MyBop;
 
+    @ApiArg.Object({
+        doc: `properties for bop`,
+        necessity: 'optional',
+    })
+    values: any;
+
     @ApiArg.UserContext()
     uc: UserContext;
 
     async run() {
         let anotherBop = new MyBop();
+        Object.assign(anotherBop, this.values);
 
         return {
             bop: dump(this.bop),
