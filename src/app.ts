@@ -4,7 +4,7 @@ import { UserContextBase } from "./lib/framework/types";
 import RolesFactory from './lib/framework/roles';
 
 export const Roles = RolesFactory({
-    // your roles here
+    // roles for your awesome project
 
 });
 
@@ -15,6 +15,9 @@ export class UserContext implements UserContextBase {
     constructor(data?: any) {
         Object.assign(this, data);
     }
+
+    // user context properties for your awesome project
+    uid?: string;
 }
 
 export type AppParameters = {

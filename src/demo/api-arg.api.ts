@@ -1,11 +1,13 @@
+import { createCipheriv, createDecipheriv, createHash } from "crypto";
 import { URL } from "url";
-import { Api, ApiArg, ApiArgValidatable } from "../framework";
+import { UserContext } from "../app";
+import { Api, ApiArg, ApiArgValidatable, Container, Tokens } from "../framework";
 import { Runnable } from "../lib/runnable";
 
 @Api({
-    doc: `Demoing ApiArg() of basic types`,
+    doc: `Demoing ApiArg() on basic types`,
 })
-export class DemoApiArgOfBasicTypes implements Runnable {
+export class DemoApiArgBasicTypes implements Runnable {
 
     @ApiArg(`a string argument`)
     aString: string;
@@ -33,6 +35,30 @@ export class DemoApiArgOfBasicTypes implements Runnable {
             aBoolean: dump(this.aBoolean),
             aURL: dump(this.aURL),
             anOptionalString: dump(this.anOptionalString),
+        }
+    }
+}
+
+@Api({
+    doc: `Demoing ApiArg() on advanced types`,
+})
+export class DemoApiArgAdvancedTypes implements Runnable {
+
+    @ApiArg.Integer({
+        doc: `an integer`,
+        range: [ 0, 100 ],
+    })
+    anInteger: number;
+
+    @ApiArg.Object({
+        doc: `an object in JSON`,
+    })
+    aJsonObject: Object;
+
+    async run() {
+        return {
+            anInteger: dump(this.anInteger),
+            anObject: dump(this.aJsonObject),
         }
     }
 }
@@ -99,5 +125,79 @@ function dump(value: any) {
         value,
         typeof: typeof value,
         constructor: value?.constructor?.name,
+    }
+}
+
+// notice that the @ApiArgValidatable() decorator is only required on the base class
+@ApiArgValidatable({
+    inputype: 'string',
+    parser: (v, ctx) => Bop.deserialize(
+        v,
+        ctx.Type,
+        (ctx.userContext as UserContext).uid || ''),
+})
+abstract class Bop {
+
+    static key = createHash('sha256').update(Container.get(Tokens.Parameters).secret).digest();
+
+    serialize(salt: string) {
+        return Bop.serialize(this, salt);
+    }
+
+    static serialize(bop: Bop, salt: string) {
+        let cipher = createCipheriv(
+            'aes-256-cbc',
+            this.key,
+            salt.padStart(16, '0'),
+        );
+        let encrypted = cipher.update(JSON.stringify(bop), 'utf-8', 'hex')
+        encrypted += cipher.final('hex');
+        return encrypted
+    }
+
+    static deserialize(v: unknown, Type: any, salt: string) {
+        if (typeof v != 'string') throw new Error('string expected');
+
+        let decipher = createDecipheriv(
+            'aes-256-cbc',
+            this.key,
+            salt.padStart(16, '0'),
+        );
+
+        let decrypted = decipher.update(v, 'hex', 'utf-8');
+        decrypted += decipher.final('utf-8');
+
+        return Object.assign(new Type(), JSON.parse(decrypted));
+    }
+
+}
+
+class MyBop extends Bop {
+}
+
+@Api({
+    doc: `Demoing bag-o-parameters. ` +
+        `This is useful for two or more Apis that follow the command pattern, ` +
+        `where one Api produces a series of options for other Apis to execute.`,
+})
+export class DemoApiArgBop implements Runnable {
+
+    @ApiArg({
+        doc: 'a bag-o-parameters that serializes into different strings for different users',
+        necessity: 'optional',
+    })
+    bop: MyBop;
+
+    @ApiArg.UserContext()
+    uc: UserContext;
+
+    async run() {
+        let anotherBop = new MyBop();
+
+        return {
+            bop: dump(this.bop),
+            anotherBop: dump(anotherBop),
+            anotherBopSerialized: anotherBop.serialize(this.uc.uid || ''),
+        }
     }
 }

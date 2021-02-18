@@ -10,6 +10,7 @@ export type ApiConstructor = Constructor<Runnable>;
 export type ApiArgParser = (
     v: unknown,
     context: {
+        Type: Constructor<any>,
         Api: ApiConstructor,
         userContext: UserContextBase,
     },
@@ -18,29 +19,17 @@ export type ApiArgParser = (
 export type ApiArgValidator = (
     v: unknown,
     context: {
+        Type: Constructor<any>,
         Api: ApiConstructor,
         userContext: UserContextBase,
     },
 ) => string | undefined | void | null;
 
-export type ApiArgValidatableOptions = {
-    inputype: string,
-    parser: ApiArgParser,
-    validator: ApiArgValidator,
-} | {
-    inputype: string,
-    parser: ApiArgParser,
-    validator?: ApiArgValidator,
-} | {
-    inputype: string,
-    parser?: ApiArgParser,
-    validator: ApiArgValidator,
-};
-
 export type ApiArgOptions = {
     doc: string,
     necessity: 'required' | 'optional' | 'overridden',
     inputype: string,
+    Type: Constructor<any>,
     parser: ApiArgParser,
     validator: ApiArgValidator,
 };

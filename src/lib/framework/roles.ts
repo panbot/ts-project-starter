@@ -3,7 +3,7 @@ import { AccessDeniedError, AuthenticationRequiredError } from "./error";
 export const Anonymous = 0;
 export const Authenticated = 1;
 export const Superuser = 0x3fffffff;
-export const CommandUser = 0x40000000;
+export const Command = 0x40000000;
 
 export function checkRoles(
     required: number,
@@ -30,7 +30,7 @@ export default function <R extends Record<string, number>>(extendedRoles: R) {
     for (let key of Object.keys(extendedRoles)) {
         let value = extendedRoles[key];
         if (value > Superuser) throw new Error(
-            `Role (${key}) value (${value}(10), or 0x${value.toString(16)}(16)) is too large. ` +
+            `Role "${key}" value ${value}(10), 0x${value.toString(16)}(16) is too large. ` +
             `Roles values cannot be larger than that of "Superuser", which is ` +
             `${Superuser.toString()}(10), or 0x${Superuser.toString(16)}(16).`);
     }
@@ -39,7 +39,7 @@ export default function <R extends Record<string, number>>(extendedRoles: R) {
         Anonymous,
         Authenticated,
         Superuser,
-        CommandUser,
+        Command,
     }, extendedRoles);
 
     const nameRoles = (roles: number): string[] => {

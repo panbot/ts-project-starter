@@ -2,6 +2,7 @@ import ApiArgValidatableFactory from "./api-arg-validatable";
 import { ApiArgOptions, ApiArgValidator, ApiConstructor } from "./types";
 import { Runnable as RunnableApi } from '../runnable';
 import ApiFactory from "./api";
+import { Constructor } from "../types";
 
 export type ApiArgDecorator = (proto: RunnableApi, propertyName: string) => void;
 
@@ -38,8 +39,8 @@ export default function (
 
             let { doc, necessity, validator, parser, inputype } = options;
 
-            if (ApiArgValidatable.has(Type)) {
-                const validatable = ApiArgValidatable.get(Type);
+            const validatable = ApiArgValidatable.get(Type);
+            if (validatable) {
                 validator = daisychain(validatable.validator, validator);
                 parser = parser || validatable.parser;
                 inputype = inputype || validatable.inputype;
@@ -47,14 +48,14 @@ export default function (
 
             if (!parser && !validator) throw new Error(`${Type.name} is not validatable`);
 
-            Api.access(proto.constructor as ApiConstructor, ({ args }) =>
-                args.set(propertyName, {
-                    doc: doc || '',
-                    necessity: necessity || 'required',
-                    inputype: inputype || Type.name,
-                    validator: validator || (() => undefined),
-                    parser: parser || (v => v),
-                }));
+            Api.access(proto.constructor as ApiConstructor, ({ args }) => args.set(propertyName, {
+                doc: doc || '',
+                necessity: necessity || 'required',
+                inputype: inputype || Type.name,
+                Type,
+                validator: validator || (() => undefined),
+                parser: parser || (v => v),
+            }));
         }
 
         function daisychain(...validators: (ApiArgValidator | undefined)[]) {
@@ -72,17 +73,10 @@ export default function (
     return Object.assign(
         ApiArg,
         {
-            UserContext: () => (proto: RunnableApi, propertyName: string) => {
-                let type = Reflect.getMetadata('design:type', proto, propertyName);
-                ApiArg({
-                    necessity: "overridden",
-                    parser: (...args) => args[1].userContext,
-                    validator: v => v instanceof type ? undefined :
-                        `invalid userContext type: ` +
-                        `"${type.name}" required, ` +
-                        `"${(v as any)?.constructor?.name}" provided.`,
-                })(proto, propertyName);
-            },
+            UserContext: () => ApiArg({
+                necessity: "overridden",
+                parser: (_, ctx) => ctx.userContext,
+            }),
 
             Integer: (options: {
                 doc: string,
@@ -101,78 +95,22 @@ export default function (
                     v => isNaN(v as number) ? 'not a number' : null,
             }),
 
-            Object: (doc: string, optional: boolean = false) => ApiArg({
-                doc,
-                necessity: optional ? 'optional' : 'required',
-                inputype: 'json',
-                parser: v => typeof v == 'string' ? JSON.parse(v) : v,
-                validator: v => v != null && typeof v == 'object' ? undefined : 'not an object',
-            }),
-
-            Enum: <T>(options: {
+            Object: (options: {
                 doc: string,
                 necessity?: ApiArgOptions['necessity'],
-                defaultValue?: T,
-                inputype?: string,
-                enum: any,
-            }) => {
-                let set = new Set<any>();
-                let { doc, necessity, defaultValue, inputype } = options;
-                let defaultName: string | undefined;
+                deserializer?: (v: string, Type: Constructor<any>) => any,
+            }) => ApiArg({
+                doc: options.doc,
+                necessity: options.necessity,
+                inputype: options.deserializer ? 'string' : 'json',
+                parser: (v, ctx) => {
+                    if (typeof v != 'string') throw new Error(`not a string`);
 
-                for (let key of Object.keys(options.enum)) {
-                    let value = options.enum[key];
-                    if (value === defaultValue) defaultName = key;
-                    doc += `, ${value}:${key}`;
-                    set.add(value);
-                    inputype = inputype || typeof value;
-                }
-
-                if (defaultName) doc += `, 默认 ${defaultName}`;
-
-                return ApiArg({
-                    doc,
-                    necessity,
-                    inputype,
-                    validator: v => set.has(v as any) ?
-                        undefined
-                        :
-                        `not one of [ ${Object.keys(options.enum).join(', ')} ]`
-                    ,
-                })
-            },
-
+                    const deserializer = options.deserializer || (
+                        v => Object.assign(new ctx.Type(), JSON.parse(v)) );
+                    return deserializer(v, ctx.Type);
+                },
+            }),
         }
     )
 }
-
-// export function ApiArgArrayOf(Type: any, options: {
-//     doc: string,
-//     necessity: ApiArgOptions['necessity'],
-// }) {
-//     return function (proto: RunnableApi, propertyName: string) {
-//         const validatable = ApiArgValidatable.get(Type);
-//         if (validatable === undefined) throw new Error(`${Type.name} is not validatable`);
-
-//         let parser = (list: unknown, api: RunnableApi) => {
-//             if (!(list instanceof Array)) throw new ArgumentError(`not an array`);
-//             return list.map(item => validatable.parser(item, api));
-//         }
-
-//         let validator = (v: unknown, api: RunnableApi) => {
-//             let list = v as any[];
-//             for (let item of list) {
-//                 let result = validatable.validator!(item, api);
-//                 if (result) return result;
-//             }
-//         }
-
-//         Api.goc(proto.constructor as ApiConstructor).args.set(propertyName, Object.assign({
-//             doc: '',
-//             optional: false,
-//             inputype: validatable.inputype + '[]',
-//             parser,
-//             validator,
-//         }, options));
-//     }
-// }

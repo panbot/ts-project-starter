@@ -2,7 +2,7 @@ import { Roles, UserContext } from "./app";
 import { DemoModule, SubDemoModule } from "./demo/module";
 import { Container, Tokens } from "./framework";
 
-console.log('dev mode');
+console.log('dev mode enabled');
 
 Container.get(Tokens.EnabledModules).push(
     SubDemoModule,

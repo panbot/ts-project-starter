@@ -1,5 +1,5 @@
 import { Module } from "../framework";
-import { DemoApiArgOfBasicTypes, DemoApiArgParserValidator, DemoApiArgValidatable } from "./api-arg.api";
+import { DemoApiArgAdvancedTypes, DemoApiArgBasicTypes, DemoApiArgBop, DemoApiArgParserValidator, DemoApiArgValidatable } from "./api-arg.api";
 import { DemoMemoize } from "./memoize.api";
 import { DemoRunArg, DemoRunArgNonTransaction } from "./run-arg-producer.api";
 import { WhoAmI } from "./who-am-i.api";
@@ -23,9 +23,11 @@ export class SubDemoModule {
         DemoRunArg,
         DemoRunArgNonTransaction,
         DemoMemoize,
-        DemoApiArgOfBasicTypes,
+        DemoApiArgBasicTypes,
+        DemoApiArgAdvancedTypes,
         DemoApiArgParserValidator,
         DemoApiArgValidatable,
+        DemoApiArgBop,
     ],
     controllers: [
 

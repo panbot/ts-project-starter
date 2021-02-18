@@ -1,40 +1,51 @@
 import { URL } from "url";
 import { Constructor } from "../types";
-import { createRegistryDecorator } from "./decorator";
 import { ArgumentError } from "./error";
-import { ApiArgParser, ApiArgValidatableOptions, ApiArgValidator } from "./types";
+import { ApiArgParser, ApiArgValidator } from "./types";
 
 export default function () {
 
-    const ApiArgValidatable = createRegistryDecorator<
-        Constructor<any>,
-        ApiArgValidatableOptions,
-        { inputype: string, parser?: ApiArgParser, validator?: ApiArgValidator }>
-    (
-        (type: Function) => ({
-            inputype: type.name,
-            parser: v => v,
-            validator: () => undefined,
-        })
-    );
+    type Options = {
+        inputype?: string,
+        parser: ApiArgParser,
+        validator: ApiArgValidator,
+    } | {
+        inputype?: string,
+        parser: ApiArgParser,
+        validator?: ApiArgValidator,
+    } | {
+        inputype?: string,
+        parser?: ApiArgParser,
+        validator: ApiArgValidator,
+    };
+
+    const ApiArgValidatable = (
+        options: Options,
+    ) => (ctor: Function & { prototype: any }) => {
+        Reflect.defineMetadata(ApiArgValidatable, {
+            inputype: options.inputype || ctor.name.toLowerCase(),
+            parser: options.parser,
+            validator: options.validator,
+        }, ctor)
+    }
+
+    function get(ctor: Constructor<any>): Options | undefined {
+        return Reflect.getMetadata(ApiArgValidatable, ctor);
+    }
 
     ApiArgValidatable({
-        inputype: 'string',
         validator: v => typeof v == "string" ? undefined : 'not a string',
     })(String);
 
     ApiArgValidatable({
-        inputype: 'number',
         validator: v => typeof v == "number" ? undefined : 'not a number',
     })(Number);
 
     ApiArgValidatable({
-        inputype: 'boolean',
-        validator: v => typeof v == "boolean" ? undefined : 'not a boolean value',
+        validator: v => typeof v == "boolean" ? undefined : 'not a bool',
     })(Boolean);
 
     ApiArgValidatable({
-        inputype: 'date',
         parser: v => {
             switch (typeof v) {
                 case "number":
@@ -56,5 +67,7 @@ export default function () {
         },
     })(URL);
 
-    return ApiArgValidatable
+    return Object.assign(ApiArgValidatable, {
+        get,
+    });
 }

@@ -1,4 +1,4 @@
-import { Anonymous, assertRoles, CommandUser } from "./roles";
+import { Anonymous, assertRoles, Command } from "./roles";
 import { ApiArgOptions, ApiConstructor, UserContextBase } from "./types";
 import { createRegistryDecorator } from "./decorator";
 import { ArgumentError } from "./error";
@@ -70,14 +70,14 @@ export class ApiOptions {
         }
 
         try {
-            let value = options.parser(input, { Api, userContext });
+            let value = options.parser(input, { Api, userContext, Type: options.Type });
 
-            let error = options.validator(value, { Api, userContext });
+            let error = options.validator(value, { Api, userContext, Type: options.Type });
             if (typeof error == 'string') return { skip: false, error }
 
             return { skip: false, value };
         } catch (e) {
-            return { skip: false, error: e.message }
+            return { skip: false, error: e.message || e }
         }
     }
 }
@@ -110,7 +110,7 @@ export default function (
 
         Cli: (doc: string, roles: number = 0) => Api({
             doc,
-            roles: roles | CommandUser,
+            roles: roles | Command,
         }),
     })
 }
