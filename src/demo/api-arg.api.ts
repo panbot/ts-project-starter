@@ -140,11 +140,11 @@ abstract class Bop {
 
     static key = createHash('sha256').update(Container.get(Tokens.Parameters).secret).digest();
 
-    serialize(salt: string) {
+    serialize(salt: string = '') {
         return Bop.serialize(this, salt);
     }
 
-    static serialize(bop: Bop, salt: string) {
+    static serialize(bop: Bop, salt: string = '') {
         let cipher = createCipheriv(
             'aes-256-cbc',
             this.key,
@@ -155,7 +155,7 @@ abstract class Bop {
         return encrypted
     }
 
-    static deserialize(v: unknown, Type: any, salt: string) {
+    static deserialize(v: unknown, Type: any, salt: string = '') {
         if (typeof v != 'string') throw new Error('string expected');
 
         let decipher = createDecipheriv(
@@ -204,7 +204,7 @@ export class DemoApiArgBop implements Runnable {
         return {
             bop: dump(this.bop),
             anotherBop: dump(anotherBop),
-            anotherBopSerialized: anotherBop.serialize(this.uc.uid || ''),
+            anotherBopSerialized: anotherBop.serialize(this.uc.uid),
         }
     }
 }

@@ -4,7 +4,7 @@ import { Api, Inject, Module, Tokens } from './framework';
 import { ModuleApiLookup } from './lib/framework/lookup';
 import { Runnable } from './lib/runnable';
 import { UserContext } from './app';
-import { CommandUser, Superuser } from './lib/framework/roles';
+import { Command, Superuser } from './lib/framework/roles';
 
 export default class implements Runnable {
 
@@ -16,7 +16,7 @@ export default class implements Runnable {
         await Module.initModules([ module ]);
 
         let uc = new UserContext();
-        uc.roles = Superuser | CommandUser;
+        uc.roles = Superuser | Command;
 
         await Api.run(
             this.lookup.findApi(process.argv[3], process.argv[4]).api,
