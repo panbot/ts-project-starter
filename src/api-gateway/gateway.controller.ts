@@ -16,11 +16,9 @@ export class GatewayController {
     @Route({
         httpMethod: 'POST',
         path: '/api/:module/:api',
-        contentType: 'application/json',
-    })
-    @Route({
-        httpMethod: 'POST',
-        path: '/api/:module/:api/:_',
+        aliases: [
+            '/api/:module/:api/:_',
+        ],
         contentType: 'application/json',
     })
     async api({
