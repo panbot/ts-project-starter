@@ -9,7 +9,6 @@ import LoggerFactory, { ConsoleLogger } from './lib/framework/log';
 import createJWT from "./lib/jwt";
 import { ModuleApiLookup } from "./lib/framework/lookup";
 import { AppParameters } from "./app";
-import modules from './enabled-modules';
 
 let parameters: AppParameters = require('../parameters.json');
 Container.set(Tokens.Parameters, parameters);
@@ -28,6 +27,7 @@ Container.set(Tokens.AuthSchemes, {
     Bearer: jwt.decode,
 });
 
+import modules from './enabled-modules';
 Container.set(Tokens.EnabledModules, modules);
 
 if (parameters.dev) require('./dev');
