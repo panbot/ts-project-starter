@@ -3,7 +3,7 @@ import { ApiArgOptions, ApiConstructor, UserContextBase } from "./types";
 import { createRegistryDecorator } from "./decorator";
 import { ArgumentError } from "./error";
 import { Instantiator } from "../types";
-import CreateRun from '../runnable';
+import CreateRun, { Runnable } from '../runnable';
 
 export class ApiOptions {
     doc: string;
@@ -11,16 +11,15 @@ export class ApiOptions {
     args = new Map<string, ApiArgOptions>();
 
     validateAll(
-        Api: ApiConstructor,
+        runnable: Runnable,
         values: { [ key: string ]: unknown },
         userContext: any,
     ) {
-        let ret: any = {};
         let errors: any = {};
 
         for (let [ name, options ] of this.args) {
             let { skip, error, value } = this.validateByOptions(
-                Api,
+                runnable,
                 name,
                 values[name],
                 userContext,
@@ -33,7 +32,7 @@ export class ApiOptions {
                 continue;
             }
 
-            ret[name] = value;
+            (runnable as any)[name] = value;
         }
 
         if (Object.keys(errors).length) throw new ArgumentError(
@@ -44,12 +43,10 @@ export class ApiOptions {
                 errors,
             }
         );
-
-        return ret;
     }
 
     private validateByOptions(
-        Api: ApiConstructor,
+        runnable: Runnable,
         name: string,
         input: unknown,
         userContext: any,
@@ -70,9 +67,9 @@ export class ApiOptions {
         }
 
         try {
-            let value = options.parser(input, { Api, userContext, Type: options.Type });
+            let value = options.parser.call(runnable, input, { userContext, Type: options.Type });
 
-            let error = options.validator(value, { Api, userContext, Type: options.Type });
+            let error = options.validator.call(runnable, value, { userContext, Type: options.Type });
             if (typeof error == 'string') return { skip: false, error }
 
             return { skip: false, value };
@@ -83,9 +80,9 @@ export class ApiOptions {
 }
 
 export default function (
-    instantiator: Instantiator,
+    instantiate: Instantiator,
 ) {
-    const run = CreateRun(instantiator);
+    const run = CreateRun(instantiate);
 
     const Api = createRegistryDecorator<ApiConstructor, ApiOptions, { doc: string, roles?: number }>(
         () => new ApiOptions(),
@@ -101,8 +98,8 @@ export default function (
             if (!opts) throw new ArgumentError(`api "${ctor.name} not found`, 404);
             assertRoles(opts.roles, userContext.roles);
 
-            let runnable = Object.create(instantiator(ctor));
-            Object.assign(runnable, opts.validateAll(ctor, args, userContext));
+            let runnable = Object.create(instantiate(ctor));
+            opts.validateAll(runnable, args, userContext);
 
             return run(runnable);
         },

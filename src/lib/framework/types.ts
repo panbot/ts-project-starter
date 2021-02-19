@@ -11,7 +11,6 @@ export type ApiArgParser = (
     v: unknown,
     context: {
         Type: Constructor<any>,
-        Api: ApiConstructor,
         userContext: UserContextBase,
     },
 ) => any;
@@ -20,7 +19,6 @@ export type ApiArgValidator = (
     v: unknown,
     context: {
         Type: Constructor<any>,
-        Api: ApiConstructor,
         userContext: UserContextBase,
     },
 ) => string | undefined | void | null;

@@ -63,8 +63,10 @@ export class DemoApiArgAdvancedTypes implements Runnable {
     }
 }
 
+type MyType = {}
+
 @Api({
-    doc: `Demoing ApiArg()'s parser and validator`,
+    doc: `Demoing the parser and the validator in ApiArgOptions`,
 })
 export class DemoApiArgParserValidator implements Runnable {
 
@@ -92,7 +94,38 @@ export class DemoApiArgParserValidator implements Runnable {
     }
 }
 
-type MyType = {}
+@Api({
+    doc: `Demoing "this" in the parser and the validator in ApiArgOptions`,
+})
+export class DemoApiArgParserValidatorThisType implements Runnable {
+
+    @ApiArg({
+        doc: `a number`
+    })
+    numberA: number;
+
+    @ApiArg({
+        doc: `a number`
+    })
+    numberB: number;
+
+    @ApiArg<DemoApiArgParserValidatorThisType>({
+        doc: `the validity is determined by the relationship between "numberA", "numberB" and the input value`,
+        validator(v: boolean) {
+            if (this.numberA > this.numberB) {
+                if (!v) return 'numberA is indeed greater than numberB';
+            } else {
+                if (v) return 'numberA is not greater than numberB';
+            }
+        }
+    })
+    aIsGreater: boolean;
+
+    async run() {
+        return {
+        }
+    }
+}
 
 @ApiArgValidatable({
     inputype: 'json',

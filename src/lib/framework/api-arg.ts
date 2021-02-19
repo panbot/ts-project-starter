@@ -1,20 +1,20 @@
 import ApiArgValidatableFactory from "./api-arg-validatable";
 import { ApiArgOptions, ApiArgValidator, ApiConstructor } from "./types";
-import { Runnable as RunnableApi } from '../runnable';
+import { Runnable } from '../runnable';
 import ApiFactory from "./api";
 import { Constructor } from "../types";
 
-export type ApiArgDecorator = (proto: RunnableApi, propertyName: string) => void;
+export type ApiArgDecorator = (proto: Runnable, propertyName: string) => void;
 
 export default function (
     Api: ReturnType<typeof ApiFactory>,
     ApiArgValidatable: ReturnType<typeof ApiArgValidatableFactory>,
 ) {
 
-    function ApiArg(options: Partial<ApiArgOptions>): ApiArgDecorator;
+    function ApiArg<T>(options: Partial<ApiArgOptions> & ThisType<T>): ApiArgDecorator;
     function ApiArg(doc: string, necessity?: ApiArgOptions['necessity']): ApiArgDecorator;
     function ApiArg(doc: string, optional?: boolean): ApiArgDecorator;
-    function ApiArg(...args: any[]) {
+    function ApiArg<T>(...args: any[]) {
         let options: Partial<ApiArgOptions>;
         if (typeof args[0] == 'string') {
             let doc: string = args[0];
@@ -34,7 +34,7 @@ export default function (
             options = args[0];
         }
 
-        return function (proto: RunnableApi, propertyName: string) {
+        return function (proto: Runnable, propertyName: string) {
             const Type = Reflect.getMetadata('design:type', proto, propertyName);
 
             let { doc, necessity, validator, parser, inputype } = options;
@@ -59,11 +59,11 @@ export default function (
         }
 
         function daisychain(...validators: (ApiArgValidator | undefined)[]) {
-            return (...args: Parameters<ApiArgValidator>) => {
+            return function(this: T, ...args: Parameters<ApiArgValidator>) {
                 for (let validator of validators) {
                     if (!validator) continue;
 
-                    let result = validator(...args);
+                    let result = validator.call(this, ...args);
                     if (typeof result == 'string') return result;
                 }
             }
