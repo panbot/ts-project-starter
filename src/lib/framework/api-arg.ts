@@ -111,6 +111,20 @@ export default function (
                     return deserializer(v, ctx.Type);
                 },
             }),
+
+            OneOf: (list: Iterable<any>, options: {
+                doc: string,
+                necessity?: ApiArgOptions['necessity'],
+                inputype: ApiArgOptions['inputype'],
+            }) => {
+                let set = new Set(list);
+                return ApiArg({
+                    doc: options.doc + ' (' + [ ...list ].join(', ') + ')',
+                    necessity: options.necessity,
+                    inputype: options.inputype,
+                    validator: v => set.has(v) ? undefined : 'invalid value',
+                })
+            }
         }
     )
 }
