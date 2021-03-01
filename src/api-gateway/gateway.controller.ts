@@ -26,13 +26,10 @@ export class GatewayController {
         body,
         userContext,
     }: RouteContext) {
-        let args: { [ key: string ]: unknown };
-        if (body == null) args = {};
-        else args = body;
         return Api.run(
             this.lookup.findApi(module, api).api,
             userContext,
-            args,
+            body || {},
         );
     }
 

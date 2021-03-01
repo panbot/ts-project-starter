@@ -104,11 +104,15 @@ export default function (
                 necessity: options.necessity,
                 inputype: options.deserializer ? 'string' : 'json',
                 parser: (v, ctx) => {
-                    if (typeof v != 'string') throw new Error(`not a string`);
-
-                    const deserializer = options.deserializer || (
-                        v => Object.assign(new ctx.Type(), JSON.parse(v)) );
-                    return deserializer(v, ctx.Type);
+                    if (typeof v == 'object') {
+                        return v;
+                    } else if (typeof v == 'string') {
+                        const deserializer = options.deserializer || (
+                            v => Object.assign(new ctx.Type(), JSON.parse(v)) );
+                        return deserializer(v, ctx.Type);
+                    } else {
+                        throw new Error(`not an object nor a string`);
+                    }
                 },
             }),
 
