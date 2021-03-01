@@ -99,6 +99,7 @@ export default function (
                 doc: string,
                 necessity?: ApiArgOptions['necessity'],
                 deserializer?: (v: string, Type: Constructor<any>) => any,
+                validator?: ApiArgValidator,
             }) => ApiArg({
                 doc: options.doc,
                 necessity: options.necessity,
@@ -114,6 +115,7 @@ export default function (
                         throw new Error(`not an object nor a string`);
                     }
                 },
+                validator: options.validator,
             }),
 
             OneOf: (list: Iterable<any>, options: {
@@ -128,7 +130,23 @@ export default function (
                     inputype: options.inputype,
                     validator: v => set.has(v) ? undefined : 'invalid value',
                 })
-            }
+            },
+
+            SomeOf: (list: Iterable<any>, options: {
+                doc: string,
+                necessity?: ApiArgOptions['necessity'],
+                inputype: ApiArgOptions['inputype'],
+            }) => {
+                let set = new Set(list);
+                return ApiArg({
+                    doc: options.doc + ' (' + [ ...list ].join(', ') + ')',
+                    necessity: options.necessity,
+                    inputype: options.inputype,
+                    validator: (v: any[]) => {
+                        for (let item of v) if (!set.has(item)) return 'invalid valud';
+                    }
+                })
+            },
         }
     )
 }
