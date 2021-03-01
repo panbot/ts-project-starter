@@ -2,7 +2,7 @@ import { Anonymous, assertRoles, Command } from "./roles";
 import { ApiArgOptions, ApiConstructor, UserContextBase } from "./types";
 import { createRegistryDecorator } from "./decorator";
 import { ArgumentError } from "./error";
-import { Instantiator } from "../types";
+import { Constructor, Instantiator } from "../types";
 import CreateRun, { Runnable } from '../runnable';
 
 export class ApiOptions {
@@ -89,21 +89,20 @@ export default function (
     );
     return Object.assign(Api, {
 
-        run: async (
-            ctor: ApiConstructor,
+        run: async <T extends Runnable>(
+            ctor: Constructor<T>,
             userContext: UserContextBase,
             args: { [ key: string ]: unknown },
-        ) => {
+        ): Promise<ReturnType<T['run']>> => {
             const opts = Api.get(ctor);
             if (!opts) throw new ArgumentError(`api "${ctor.name} not found`, 404);
             assertRoles(opts.roles, userContext.roles);
 
-            let runnable = Object.create(instantiate(ctor));
+            let runnable: T = Object.create(instantiate(ctor));
             opts.validateAll(runnable, args, userContext);
 
             return run(runnable);
         },
-
 
         Cli: (doc: string, roles: number = 0) => Api({
             doc,
