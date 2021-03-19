@@ -24,7 +24,7 @@ export const request = (
     url: URL,
     options: RequestOptions,
     data: any,
-) => new Promise<NodeJS.ReadableStream>((resolve, reject) => {
+) => new Promise<http.IncomingMessage>((resolve, reject) => {
     let req: http.ClientRequest;
     switch (url.protocol) {
         case 'http:':

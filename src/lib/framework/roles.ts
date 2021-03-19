@@ -35,12 +35,13 @@ export default function <R extends Record<string, number>>(extendedRoles: R) {
             `${Superuser.toString()}(10), or 0x${Superuser.toString(16)}(16).`);
     }
 
-    const Roles = Object.assign({
+    const Roles = {
         Anonymous,
         Authenticated,
         Superuser,
         Command,
-    }, extendedRoles);
+        ...extendedRoles,
+    };
 
     const nameRoles = (roles: number): string[] => {
         let matches: string[] = [];
@@ -74,9 +75,10 @@ export default function <R extends Record<string, number>>(extendedRoles: R) {
         }
     }
 
-    return Object.assign({
+    return {
         checkRoles,
         assertRoles,
         nameRoles,
-    }, Roles);
+        ...Roles,
+    }
 }

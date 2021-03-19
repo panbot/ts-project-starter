@@ -46,6 +46,7 @@ export default function () {
 
     function Service(name: string): Function;
     function Service(token: TokenType<any>): Function;
+    function Service(factory: (getter: typeof get) => any);
     function Service() {
         const arg = arguments[0];
 
@@ -63,6 +64,10 @@ export default function () {
                 } else {
                     services.set(arg, { ctor });
                 }
+           } else if (typeof arg == 'function') {
+               services.set(ctor, {
+                   factory: arg,
+               })
            }
         }
     }
@@ -226,12 +231,13 @@ export default function () {
         } else if (
             propertyKey !== undefined &&
             index === undefined
-        ) { // static / member property injection
-            if (typeof target == 'function') {
-                throw error(`TODO: static property injection`);
-            }
+        ) {
             injection.ctor = Reflect.getMetadata('design:type', target, propertyKey);
-            mr<string>(MetadataKeys.PropertyName, target).add(propertyKey);
+            if (typeof target == 'function') { // static property injection
+                // throw error(`TODO: static property injection`);
+            } else { // member property injection
+                mr<string>(MetadataKeys.PropertyName, target).add(propertyKey);
+            }
         } else {
             throw error(`unsupported decorator parameters`);
         }
@@ -279,7 +285,26 @@ export default function () {
                      ].join(', '))
                 }
         }
-        mr(MetadataKeys.Injection, target, propertyKey).add(injection);
+
+        if (typeof target == 'function' && propertyKey) { // static property injection
+            let value: any;
+            let developed = false;
+            Object.defineProperty(target, propertyKey, {
+                get() {
+                    if (!developed) {
+                        value = develop(injection);
+                        developed = true;
+                    }
+                    return value;
+                },
+                set(v) {
+                    developed = true;
+                    return value = v;
+                },
+            })
+        } else {
+            mr(MetadataKeys.Injection, target, propertyKey).add(injection);
+        }
     }
 
     function getPropertyInjections(target: any) {

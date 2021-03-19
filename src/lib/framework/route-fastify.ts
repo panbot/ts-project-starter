@@ -119,7 +119,7 @@ implements RouteAdapter
             const format = formatFactory(options.contentType);
 
             succeed = after(base, (_, result, logger, reply) => {
-                logger.debug(Object.assign(new Result, result));
+                logger.debug(Object.assign(new Result(), result));
                 reply.code(200);
                 reply.send(format.result(result));
             })
@@ -151,13 +151,13 @@ implements RouteAdapter
         class Response { }
 
         return createLoggerProxy(logger, data => [
-            Object.assign(new Request, {
+            Object.assign(new Request(), {
                 method: request.method,
                 url: request.url,
                 body: request.body,
                 headers: request.headers,
             }),
-            Object.assign(new Response, {
+            Object.assign(new Response(), {
                 statusCode: reply.statusCode,
                 headers: reply.getHeaders(),
             }),
@@ -170,9 +170,7 @@ function formatFactory(ct: string): Record<'result' | 'error', (v: any) => any> 
     switch (ct) {
         case 'application/json': return {
             result: v => JSON.stringify(v),
-            error: v => JSON.stringify(Object.assign({
-                message: v?.message,
-            }, v)),
+            error: v => JSON.stringify({ message: v?.message, ...v }),
         }
 
         case 'application/jsonp': throw new Error(`TODO: ${ct}`);

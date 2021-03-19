@@ -104,6 +104,7 @@ export default function (
             return run(runnable);
         },
 
+
         Cli: (doc: string, roles: number = 0) => Api({
             doc,
             roles: roles | Command,

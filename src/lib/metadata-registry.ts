@@ -21,7 +21,7 @@ export default function <T>(
         getUpChain(): T[] {
             let ret: T[] = [];
 
-            let o = target;
+            let o: any = target;
             while (o) {
                 let args = [ o, property ];
                 ret = ret.concat(Reflect.getOwnMetadata.call(Reflect, key, ...args) || []);
