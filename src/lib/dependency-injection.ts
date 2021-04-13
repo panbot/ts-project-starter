@@ -46,7 +46,7 @@ export default function () {
 
     function Service(name: string): Function;
     function Service(token: TokenType<any>): Function;
-    function Service(factory: (getter: typeof get) => any);
+    function Service(factory: (getter: typeof get) => any): Function;
     function Service() {
         const arg = arguments[0];
 
@@ -107,7 +107,7 @@ export default function () {
         services.set(arg, { instance });
     }
 
-    function instantiate(ctor: Constructor<any>) {
+    function instantiate<T extends Object>(ctor: Constructor<T>) {
         let instance = new ctor(
             ...mr<ParameterInjection>(MetadataKeys.Injection, ctor).get().reduce(
                 (pv, cv) => (pv[cv.index] = develop(cv), pv),

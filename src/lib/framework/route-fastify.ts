@@ -8,11 +8,13 @@ import { FastifyInstance } from "fastify";
 export class FastifyHandlerFactory
 implements RouteAdapter
 {
-
     constructor(
         public fastify: FastifyInstance,
-        public instantiateUserContext: (data: any) => UserContextBase,
-        public authSchemes: Record<string, (payload: string) => any>,
+        public createUserContext: (
+            request: FastifyRequest,
+            logger: Loggable,
+            token: string | undefined,
+        ) => UserContextBase,
         public logger: Loggable,
     ) { }
 
@@ -20,7 +22,7 @@ implements RouteAdapter
         options: RouteOptions,
         runner: (rc: RouteContext) => Promise<any>,
     ) {
-        const getUserContext = this.getUserContextFactory(options);
+        const createUserContext = this.userContextFactory(options);
         const { succeed, fail } = this.resultHandlerFactory(options);
 
         for (let url of (options.aliases || []).concat(options.path)) {
@@ -37,7 +39,7 @@ implements RouteAdapter
                             await runner({
                                 request,
                                 reply,
-                                userContext: getUserContext(request, logger),
+                                userContext: createUserContext(request, logger),
                                 params: request.params as any, // @FIXME
                                 body: request.body,
                                 logger,
@@ -54,52 +56,31 @@ implements RouteAdapter
         }
     }
 
-    private getUserContextFactory(options: RouteOptions) {
-        let getUserContext = (req: FastifyRequest, logger: Loggable): UserContextBase =>
-            this.extractUserContext(req.headers['authorization'], logger) ||
-            this.instantiateUserContext(null);
+    private userContextFactory(options: RouteOptions) {
+        let getToken: (request: FastifyRequest) => string | undefined = req => req.headers['authorization'];
 
         if (options.queryKeyForAuthentication) {
             let key = options.queryKeyForAuthentication;
-            getUserContext = after(
-                getUserContext,
-                (userContext, req, logger) => this.extractUserContext(
-                    (req.query as any)[key], logger) || userContext,
+            getToken = after(
+                getToken,
+                (token, req) => (req.query as any)[key] || token,
             );
         }
+
+        let factory = (
+            request: FastifyRequest,
+            logger: Loggable,
+        ): UserContextBase => this.createUserContext(request, logger, getToken(request));
 
         if (options.roles) {
             let requiredRoles = options.roles;
-            getUserContext = after(
-                getUserContext,
-                userContext => ( assertRoles(requiredRoles, userContext.roles), userContext ),
-            );
+            factory = after(
+                factory,
+                ctx => ( assertRoles(requiredRoles, ctx.roles), ctx ),
+            )
         }
 
-        return getUserContext;
-    }
-
-    private extractUserContext(v: string | undefined, logger: Loggable) {
-        try {
-            return this.instantiateUserContext(this.parseAuthToken(v));
-        } catch (error) {
-            logger.debug(error);
-        }
-    }
-
-    private parseAuthToken(v: string | undefined) {
-        if (v) {
-            let [ scheme, payload ] = v.split(' ', 2);
-
-            let parse = this.authSchemes[scheme];
-            if (!parse) throw new Error(`unknown authorization scheme "${scheme}"`);
-
-            try {
-                return parse(payload)
-            } catch (e) {
-                throw new Error(`failed to parse authorization token: ${e.message}`)
-            }
-        }
+        return factory
     }
 
     private resultHandlerFactory(options: RouteOptions) {
@@ -110,7 +91,9 @@ implements RouteAdapter
             request: FastifyRequest) => any;
         let succeed: OnResult;
         let fail: OnResult;
-        class Result { }
+        class Result {
+            constructor(public result: any) { }
+        }
 
         if (options.contentType) {
             let ct = options.contentType;
@@ -119,7 +102,7 @@ implements RouteAdapter
             const format = formatFactory(options.contentType);
 
             succeed = after(base, (_, result, logger, reply) => {
-                logger.debug(Object.assign(new Result(), result));
+                logger.debug(new Result(result));
                 reply.code(200);
                 reply.send(format.result(result));
             })
@@ -169,11 +152,11 @@ implements RouteAdapter
 function formatFactory(ct: string): Record<'result' | 'error', (v: any) => any> {
     switch (ct) {
         case 'application/json': return {
-            result: v => JSON.stringify(v),
+            result: v => JSON.stringify(v !== undefined ? v : null),
             error: v => JSON.stringify({ message: v?.message, ...v }),
         }
 
-        case 'application/jsonp': throw new Error(`TODO: ${ct}`);
+        case 'application/jsonp': throw new Error(`unsupported content type "${ct}"`);
 
         default: return {
             result: v => v,

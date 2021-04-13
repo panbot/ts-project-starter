@@ -6,7 +6,7 @@ import { Inject, InjectParam, Module, Route, Tokens } from './framework';
 import { Loggable } from './lib/framework/log';
 import { Controller, ModuleConstructor } from './lib/framework/types';
 import { Constructor } from './lib/types';
-import fastify from "fastify";
+import fastify, { FastifyRequest } from "fastify";
 import { deserialize } from "bson";
 import { UserContext } from './app';
 import { FastifyHandlerFactory } from './lib/framework/route-fastify';
@@ -61,8 +61,7 @@ export default class implements Runnable {
             this.controllers,
             new FastifyHandlerFactory(
                 server,
-                v => new UserContext(v),
-                this.authSchemes,
+                (...args) => this.createUserContext(...args),
                 this.logger,
             ),
         );
@@ -77,5 +76,31 @@ export default class implements Runnable {
                 shutdown.register(() => server.close(() => this.logger.info('fastify closed')));
             },
         );
+    }
+
+    createUserContext (
+        request: FastifyRequest,
+        logger: Loggable,
+        token: string | undefined,
+    ) {
+        let uc = new UserContext();
+
+        if (!token) return uc;
+
+        let [ scheme, payload ] = token.split(' ', 2);
+
+        let parse = this.authSchemes[scheme];
+        if (!parse) {
+            logger.debug(`invalid auth scheme "${scheme}"`);
+            return uc;
+        }
+
+        try {
+            Object.assign(uc, parse(payload))
+        } catch (e) {
+            logger.debug(`failed to parse auth token`, e);
+        }
+
+        return uc;
     }
 }
