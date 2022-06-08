@@ -4,17 +4,13 @@ import { Loggable, createLoggerProxy } from "./log";
 import { assertRoles } from "./roles";
 import { UserContextBase, RouteContext, RouteOptions, RouteAdapter } from "./types";
 import { FastifyInstance } from "fastify";
+import { Roles } from "../../app";
 
 export class FastifyHandlerFactory
 implements RouteAdapter
 {
     constructor(
         public fastify: FastifyInstance,
-        public createUserContext: (
-            request: FastifyRequest,
-            logger: Loggable,
-            token: string | undefined,
-        ) => UserContextBase,
         public logger: Loggable,
     ) { }
 
@@ -25,7 +21,7 @@ implements RouteAdapter
         const createUserContext = this.userContextFactory(options);
         const { succeed, fail } = this.resultHandlerFactory(options);
 
-        for (let url of (options.aliases || []).concat(options.path)) {
+        for (let url of [ options.path, ...options.aliases || [] ]) {
             this.fastify.route({
                 method: options.httpMethod as HTTPMethods,
                 url,
@@ -57,20 +53,17 @@ implements RouteAdapter
     }
 
     private userContextFactory(options: RouteOptions) {
-        let getToken: (request: FastifyRequest) => string | undefined = req => req.headers['authorization'];
-
-        if (options.queryKeyForAuthentication) {
-            let key = options.queryKeyForAuthentication;
-            getToken = after(
-                getToken,
-                (token, req) => (req.query as any)[key] || token,
-            );
-        }
-
-        let factory = (
+        let factory: (
             request: FastifyRequest,
             logger: Loggable,
-        ): UserContextBase => this.createUserContext(request, logger, getToken(request));
+        ) => UserContextBase;
+
+        if (options.createUserContext) {
+            let create = options.createUserContext;
+            factory = (request, logger) => create(request.headers, request.query, logger);
+        } else {
+            factory = () => ({ roles: Roles.Anonymous });
+        }
 
         if (options.roles) {
             let requiredRoles = options.roles;
@@ -113,12 +106,19 @@ implements RouteAdapter
                 reply.send(format.error(userFriendlyError));
             })
         } else {
-            fail = succeed = (result, logger, reply) => {
-                if (!reply.sent) {
-                    logger.crit('reply not sent', result);
-                    reply.code(500);
-                    reply.send('something went wrong');
-                }
+            fail = (error, logger, reply) => {
+                if (reply.sent) return;
+
+                reply.code(error.httpCode || 500);
+                reply.send(error.message);
+            };
+
+            succeed = (result, logger, reply) => {
+                if (reply.sent) return;
+
+                logger.crit('reply not sent', result);
+                reply.code(500);
+                reply.send('');
             }
         }
 

@@ -37,7 +37,12 @@ export const request = (
 
         default: throw new Error(`unsupported protocol "${url.protocol}"`);
     }
-    req.on('error', reject);
+    let timeout = false;
+    if (options.timeout) req.setTimeout(options.timeout, () => {
+        timeout = true;
+        req.destroy();
+    });
+    req.on('error', e => reject(Object.assign(e, { timeout })));
 
     if (data) req.end(data);
     else req.end();

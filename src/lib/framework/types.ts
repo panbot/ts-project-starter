@@ -51,7 +51,11 @@ export type RouteOptions = {
         'text/html' |
         'text/plain'
     ,
-    queryKeyForAuthentication?: string,
+    createUserContext?: (
+        headers: any,
+        query: any,
+        logger: Loggable,
+    ) => UserContextBase,
 };
 
 export type RouteContext<Request = unknown, Reply = unknown> = {

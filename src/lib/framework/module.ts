@@ -1,6 +1,7 @@
 import { createRegistryDecorator } from "./decorator";
 import { ApiConstructor, ControllerConstructor, ModuleConstructor } from "./types";
 import { Instantiator } from "../types";
+import { RunArgFactory, Runnable } from "../runnable";
 
 export class ModuleOptions {
     doc: string;
@@ -12,54 +13,64 @@ export class ModuleOptions {
 export default function (
     instantiator: Instantiator,
 ) {
-
-    let Module = Object.assign(
-        createRegistryDecorator<
-            ModuleConstructor,
-            ModuleOptions,
-            {
-                doc: string,
-                apis?: ApiConstructor[],
-                controllers?: ControllerConstructor[],
-                dependencies?: () => ModuleConstructor[],
-            }
-        >(
-            () => new ModuleOptions(),
-        ),
+    const Module = createRegistryDecorator<
+        ModuleConstructor,
+        ModuleOptions,
         {
-            resolveDependencies(ctors: ModuleConstructor[]) {
-                let visited = new Set<ModuleConstructor>();
-                let ret: ModuleConstructor[] = [];
+            doc: string,
+            apis?: ApiConstructor[],
+            controllers?: ControllerConstructor[],
+            dependencies?: () => ModuleConstructor[],
+        }
+    >(
+        () => new ModuleOptions(),
+    );
 
-                for (let ctor of ctors) visit(ctor, new Set<ModuleConstructor>());
+    const resolveDependencies = (ctors: ModuleConstructor[]) => {
+        let visited = new Set<ModuleConstructor>();
+        let ret: ModuleConstructor[] = [];
 
-                return ret;
+        for (let ctor of ctors) visit(ctor, new Set<ModuleConstructor>());
 
-                function visit(ctor: ModuleConstructor, path: Set<ModuleConstructor>) {
-                    if (visited.has(ctor)) return;
+        return ret;
 
-                    if (path.has(ctor)) throw new Error(
-                        `circular dependency found, ` + [ ...path, ctor ].map(v => v.name).join(' -> ')
-                    );
-                    path.add(ctor);
+        function visit(ctor: ModuleConstructor, path: Set<ModuleConstructor>) {
+            if (visited.has(ctor)) return;
 
-                    for (let dep of Module.get(ctor).dependencies()) {
-                        visit(dep, new Set<ModuleConstructor>([ ...path ]))
-                    }
+            if (path.has(ctor)) throw new Error(
+                `circular dependency found, ` + [ ...path, ctor ].map(v => v.name).join(' -> ')
+            );
+            path.add(ctor);
 
-                    ret.push(ctor);
-                    visited.add(ctor);
+            for (let dep of Module.get(ctor).dependencies()) {
+                visit(dep, new Set<ModuleConstructor>([ ...path ]))
+            }
+
+            ret.push(ctor);
+            visited.add(ctor);
+        }
+    }
+
+    const initModules = async (modules: ModuleConstructor[]) =>  {
+        for (let ctor of resolveDependencies(modules)) {
+            let module = instantiator(ctor);
+            if (module.init) await module.init();
+        }
+    }
+
+    return Object.assign(
+        Module,
+        {
+            resolveDependencies,
+            initModules,
+
+            RunArgLoader: class implements RunArgFactory {
+                async produceRunArgFor(_: Runnable<unknown>, modules: ModuleConstructor[]) {
+                    await initModules(modules)
                 }
-            },
-
-            async initModules(modules: ModuleConstructor[]) {
-                for (let ctor of Module.resolveDependencies(modules)) {
-                    let module = instantiator(ctor);
-                    if (module.init) await module.init();
+                async releaseRunArgFor(_: Runnable<unknown>) {
                 }
             }
         }
     );
-
-    return Module;
 }

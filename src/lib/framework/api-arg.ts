@@ -143,7 +143,7 @@ export default function (
                     necessity: options.necessity,
                     inputype: options.inputype,
                     validator: (v: any[]) => {
-                        for (let item of v) if (!set.has(item)) return 'invalid valud';
+                        for (let item of v) if (!set.has(item)) return `invalid value (${item})`;
                     }
                 })
             },

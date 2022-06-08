@@ -6,7 +6,16 @@ export default {
 
     register: (p: () => void) => procedures.push(p),
 
-    initiate: () => procedures.forEach(p => { try { p() } catch (e) { console.error(e) }}),
+    initiate() {
+        let p: any;
+        while (p = procedures.pop()) {
+            try {
+                p();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+    },
 
     listen(signals: string[] = ['SIGTERM', 'SIGINT']) {
         if (!initiated) {

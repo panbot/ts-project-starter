@@ -234,7 +234,6 @@ export default function () {
         ) {
             injection.ctor = Reflect.getMetadata('design:type', target, propertyKey);
             if (typeof target == 'function') { // static property injection
-                // throw error(`TODO: static property injection`);
             } else { // member property injection
                 mr<string>(MetadataKeys.PropertyName, target).add(propertyKey);
             }

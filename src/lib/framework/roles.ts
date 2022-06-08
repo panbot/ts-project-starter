@@ -1,9 +1,9 @@
 import { AccessDeniedError, AuthenticationRequiredError } from "./error";
 
-export const Anonymous = 0;
-export const Authenticated = 1;
-export const Superuser = 0x3fffffff;
-export const Command = 0x40000000;
+export const Anonymous     = 0x00000000;
+export const Authenticated = 0x00000001;
+export const Superuser     = 0x3fffffff;
+export const Command       = 0x40000000;
 
 export function checkRoles(
     required: number,
