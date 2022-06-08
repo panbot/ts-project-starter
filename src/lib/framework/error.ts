@@ -1,10 +1,15 @@
 import { Loggable } from "./log";
 
+export let i18n = new Map<string, string>();
+function t(msg: string) {
+    return i18n.get(msg) || msg;
+}
+
 export class HttpCodedError {
 
     stack?: string;
 
-    get userFriendlyMessage() { return 'something went wrong' }
+    get userFriendlyMessage() { return t('something went wrong') }
 
     constructor(
         public message: string,
@@ -36,7 +41,7 @@ export class ArgumentError extends HttpCodedError {
 
 export class AuthenticationRequiredError extends ArgumentError {
     constructor(
-        message = 'authentication required',
+        message = t('authentication required'),
         extra = {},
     ) {
         super(message, 401, extra);
@@ -45,7 +50,7 @@ export class AuthenticationRequiredError extends ArgumentError {
 
 export class AccessDeniedError extends ArgumentError {
     constructor(
-        message = 'insufficient permissions',
+        message = t('insufficient permissions'),
         extra = {},
     ) {
         super(message, 403, extra);
@@ -55,7 +60,7 @@ export class AccessDeniedError extends ArgumentError {
 export class ServerTooManyRequestsError extends ArgumentError {
 
     constructor(
-        public message = 'too many requests',
+        public message = t('too many requests'),
         extra: any = {},
     ) {
         super(message, 529, extra)
@@ -64,7 +69,7 @@ export class ServerTooManyRequestsError extends ArgumentError {
 
 export class ClientTooManyRequestsError extends ArgumentError {
     constructor(
-        public message = 'too many requests',
+        public message = t('too many requests'),
         extra = {},
     ) {
         super(message, 429, extra)
@@ -81,7 +86,7 @@ export function defaultErrorHandler(error: any, logger?: Loggable) {
         else userFriendlyError = new Error(error.userFriendlyMessage);
     } else {
         statusCode = 500;
-        userFriendlyError = new Error('something went wrong');
+        userFriendlyError = new Error(t('something went wrong'));
     }
 
     if (statusCode < 500) {

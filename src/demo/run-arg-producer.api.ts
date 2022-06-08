@@ -36,7 +36,7 @@ export type MyRunArgProducerOptions = {
     transactional: boolean,
 }
 
-export class MyRunArgProducer implements RunArgFactory<MyRunArg, MyRunArgProducerOptions> {
+export class MyRunArgProducer implements RunArgFactory {
 
     private runArgs = new WeakMap<any, MyRunArg>();
 
