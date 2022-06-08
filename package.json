@@ -19,9 +19,7 @@
     "bson": "^4.2.2",
     "fastify": "^3.11.0",
     "fastify-cors": "^4.1.0",
-    "ldap-authentication": "^2.2.6",
     "mongodb": "^3.6.3",
-    "mysql": "^2.18.1",
     "reflect-metadata": "^0.1.13",
     "typeorm": "^0.2.30"
   },
