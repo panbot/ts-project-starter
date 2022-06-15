@@ -1,10 +1,9 @@
 import { FastifyRequest, FastifyReply, HTTPMethods } from "fastify";
 import { defaultErrorHandler } from "./error";
 import { Loggable, createLoggerProxy } from "./log";
-import { assertRoles } from "./roles";
+import { Anonymous, assertRoles } from "./roles";
 import { UserContextBase, RouteContext, RouteOptions, RouteAdapter } from "./types";
 import { FastifyInstance } from "fastify";
-import { Roles } from "../../app";
 
 export class FastifyHandlerFactory
 implements RouteAdapter
@@ -62,7 +61,7 @@ implements RouteAdapter
             let create = options.createUserContext;
             factory = (request, logger) => create(request.headers, request.query, logger);
         } else {
-            factory = () => ({ roles: Roles.Anonymous });
+            factory = () => ({ roles: Anonymous });
         }
 
         if (options.roles) {
