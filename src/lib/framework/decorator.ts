@@ -2,7 +2,7 @@ import { Constructor } from "../types";
 
 export function createRegistryDecorator<
     Decoratee extends Constructor<any>,
-    CompleteOptions,
+    CompleteOptions extends {},
     InitOptions,
 >(
     initOptions: (ctor: Decoratee) => CompleteOptions,

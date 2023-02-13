@@ -1,4 +1,3 @@
-import "reflect-metadata";
 import mr from './metadata-registry';
 
 export function AopFactory(

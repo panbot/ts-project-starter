@@ -1,5 +1,5 @@
-import { ApiGatewayModule } from './api-gateway/module';
+import { AppModule } from './app/module';
 
 export default [
-    ApiGatewayModule,
+    AppModule,
 ]

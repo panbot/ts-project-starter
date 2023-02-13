@@ -3,6 +3,7 @@ import ApiArgFactory from './api-arg';
 import ApiFactory from './api';
 import ModuleFactory from './module';
 import RouteFactory from './route';
+import BackgroundJobFactory from './background-job';
 import { Instantiator } from "../types";
 
 export default function (
@@ -12,6 +13,7 @@ export default function (
     const Api = ApiFactory(instantiator);
     const ApiArgValidatable = ApiArgValidatableFactory();
     const ApiArg = ApiArgFactory(Api, ApiArgValidatable);
+    const BackgroundJob = BackgroundJobFactory(instantiator);
 
     const Route = RouteFactory(
         instantiator,
@@ -21,6 +23,7 @@ export default function (
         ApiArgValidatable,
         ApiArg,
         Api,
+        BackgroundJob,
         Module,
         Route,
     }

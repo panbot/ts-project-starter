@@ -8,7 +8,6 @@ import {
 import LoggerFactory, { ConsoleLogger } from './lib/framework/log';
 import createJWT from "./lib/jwt";
 import { ModuleApiLookup } from "./lib/framework/lookup";
-import { AppParameters } from "./app";
 
 let parameters: AppParameters = require('../parameters.json');
 Container.set(Tokens.Parameters, parameters);
@@ -28,6 +27,7 @@ Container.set(Tokens.AuthSchemes, {
 });
 
 import modules from './enabled-modules';
+import { AppParameters } from "./app/parameter";
 Container.set(Tokens.EnabledModules, modules);
 
 if (parameters.dev) require('./dev');

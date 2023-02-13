@@ -76,7 +76,7 @@ export class ClientTooManyRequestsError extends ArgumentError {
     }
 }
 
-export function defaultErrorHandler(error: any, logger?: Loggable) {
+export function defaultErrorHandler(error: any) {
     let statusCode: number;
     let userFriendlyError: any;
 
@@ -87,12 +87,6 @@ export function defaultErrorHandler(error: any, logger?: Loggable) {
     } else {
         statusCode = 500;
         userFriendlyError = new Error(t('something went wrong'));
-    }
-
-    if (statusCode < 500) {
-        logger?.debug(error)
-    } else {
-        logger?.crit(error);
     }
 
     return {

@@ -1,6 +1,6 @@
 import { createCipheriv, createDecipheriv, createHash } from "crypto";
 import { URL } from "url";
-import { UserContext } from "../app";
+import { UserContext } from "../app/security";
 import { Api, ApiArg, ApiArgValidatable, Container, Tokens } from "../framework";
 import { Runnable } from "../lib/runnable";
 

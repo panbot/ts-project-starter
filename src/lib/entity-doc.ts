@@ -1,3 +1,5 @@
+import "reflect-metadata";
+
 export default {
     Doc: (doc: string) => (protoOrClass: any, propertyName?: string) => {
         if (propertyName) {
@@ -16,9 +18,20 @@ export default {
         }
     },
 
-    Data: (key: string, value: any) => (entityClass: any) => {
-        let ed = createOrGetEntityDoc(entityClass);
-        ed.data[key] = value;
+    Data: (key: string, value: any) => (protoOrClass: any, propertyName?: string) => {
+        if (propertyName) {
+            let ed = createOrGetEntityDoc(protoOrClass.constructor);
+
+            let fd = ed.fields.get(propertyName);
+            if (!fd) {
+                fd = new FieldDoc();
+                ed.fields.set(propertyName, fd);
+            }
+            fd.data[key] = value;
+        } else {
+            let ed = createOrGetEntityDoc(protoOrClass);
+            ed.data[key] = value;
+        }
     },
 }
 
@@ -29,6 +42,7 @@ export function getEntityDoc(entityClass: Function) {
 class FieldDoc {
     doc: string;
     type: any;
+    data: any = {};
 }
 
 class EntityDoc {

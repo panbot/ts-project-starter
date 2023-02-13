@@ -1,4 +1,4 @@
-import { Roles, UserContext } from "../app";
+import { UserContext, Roles } from "../app/security";
 import { Api, ApiArg } from "../framework";
 import { Runnable } from "../lib/runnable";
 

@@ -4,11 +4,11 @@ import { ModuleConstructor } from './lib/framework/types';
 import { Loggable } from './lib/framework/log';
 import { JWT } from './lib/jwt';
 import { ModuleApiLookup } from './lib/framework/lookup';
-import { AppParameters } from './app';
 import FrameworkFactory from './lib/framework';
 import * as AOP from './lib/aop';
 import memoize from './lib/memoize';
 import di from './lib/dependency-injection';
+import { AppParameters } from './app/parameter';
 
 export const Container = di();
 export const instantiate: Instantiator = Container.get;

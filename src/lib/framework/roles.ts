@@ -21,7 +21,11 @@ export function assertRoles(
         if (Anonymous == provided) {
             throw new AuthenticationRequiredError(message);
         } else {
-            throw new AccessDeniedError(message);
+            throw new AccessDeniedError(message, {
+                required,
+                provided,
+                missing: required ^ provided & required,
+            })
         }
     }
 }

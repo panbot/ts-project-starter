@@ -1,74 +1,70 @@
 import 'reflect-metadata';
-import { Around } from './aop';
+import { Around as AroundType } from './aop';
 
-export default (Around: Around) => (
-    timeToLiveInSeconds: number,
+export default (
+    Around: AroundType,
+) => (
+    secondsToLive: number,
     autoUpdate: boolean = false,
-) => ((
-    symbol: Symbol,
-) => autoUpdate?
-    Around(async (execute, target, methodName, args) => {
-        if (args.length) throw new Error(`memoization with args not supported`);
-        if (Reflect.hasMetadata(symbol, target[methodName])) {
-            let v: Cache = Reflect.getMetadata(symbol, target[methodName]);
-            if (v.promise) return await v.promise;
-            else return v.value;
-        } else {
-            setInterval(renew, timeToLiveInSeconds * 1000).unref();
+) => Around((execute, target, methodName, args) => {
+    if (args.length) throw new Error(`memoization with args not supported`);
 
-            Reflect.defineMetadata(symbol, {}, target[methodName]);
-            return await renew();
-        }
+    let symbol = getSymbol(Around);
+    let cache: Cache;
 
-        async function renew() {
-            let rewnewedAt = new Date();
-            let cache: Cache = Reflect.getMetadata(symbol, target[methodName]);
-            cache.rewnewedAt = rewnewedAt;
-            cache.promise = execute();
-            let value = await cache.promise;
+    if (Reflect.hasMetadata(symbol, target[methodName])) {
+        cache = Reflect.getMetadata(symbol, target[methodName]);
 
-            cache = Reflect.getMetadata(symbol, target[methodName]);
-            if (cache.rewnewedAt?.getTime() != rewnewedAt.getTime()) return value;
+        if (
+            cache.success &&
+            cache.success.age() < secondsToLive * 1000
+        ) return cache.success.value;
+    } else {
+        cache = new Cache();
+        Reflect.defineMetadata(symbol, cache, target[methodName]);
 
-            delete cache.promise;
-            cache.value = value;
-            cache.resolvedAt = new Date();
+        if (autoUpdate) setInterval(
+            () => cache.renew(execute).catch(e => console.error(e)),
+            secondsToLive * 1000,
+        );
+    }
+
+    return cache.renew(execute);
+})
+
+export class Cache {
+
+    success?: {
+        at: Date,
+        value: any,
+        age: () => number,
+    };
+
+    error: any;
+
+    private promise?: Promise<any>;
+
+    async renew(retrieve: () => Promise<any>) {
+        if (this.promise) return this.promise;
+
+        this.promise = retrieve();
+        try {
+            let value = await this.promise;
+            this.success = {
+                at: new Date,
+                value,
+                age() { return new Date().getTime() - this.at.getTime() }
+            };
+            this.error = undefined;
             return value;
+        } catch (e) {
+            this.error = e;
+            throw e;
+        } finally {
+            this.promise = undefined;
         }
-    })
-    :
-    Around(async (execute, target, methodName, args) => {
-        if (args.length) throw new Error(`memoization with args not supported`);
-
-        if (Reflect.hasMetadata(symbol, target[methodName])) {
-            let cache: Cache = Reflect.getMetadata(symbol, target[methodName]);
-            if (cache.promise) return await cache.promise;
-            if (expired(cache.resolvedAt)) return await renew();
-            else return cache.value;
-        } else return await renew();
-
-        async function renew() {
-            let cache: Cache = { rewnewedAt: new Date(), promise: execute() };
-            Reflect.defineMetadata(symbol, cache, target[methodName]);
-            cache.value = await cache.promise;
-            delete cache.promise;
-            cache.resolvedAt = new Date();
-            return cache.value
-        };
-
-        function expired(d: Date | undefined) {
-            if (!d) return true;
-            return new Date().getTime() - d.getTime() > timeToLiveInSeconds * 1000
-        }
-    })
-)(getSymbol(Around))
-
-type Cache = {
-    value?: any,
-    promise?: Promise<any>,
-    rewnewedAt?: Date,
-    resolvedAt?: Date,
-};
+    }
+}
 
 let symbols = new Map<any, Symbol>();
 function getSymbol(key: any) {

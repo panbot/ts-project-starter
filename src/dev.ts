@@ -1,4 +1,4 @@
-import { Roles, UserContext } from "./app";
+import { UserContext, Roles } from "./app/security";
 import { DemoModule, SubDemoModule } from "./demo/module";
 import { Container, Tokens } from "./framework";
 

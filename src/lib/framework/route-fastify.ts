@@ -2,7 +2,7 @@ import { FastifyRequest, FastifyReply, HTTPMethods } from "fastify";
 import { defaultErrorHandler } from "./error";
 import { Loggable, createLoggerProxy } from "./log";
 import { Anonymous, assertRoles } from "./roles";
-import { UserContextBase, RouteContext, RouteOptions, RouteAdapter } from "./types";
+import { UserContextGeneric, RouteOptions, RouteAdapter, RouteContextGeneric } from "./types";
 import { FastifyInstance } from "fastify";
 
 export class FastifyHandlerFactory
@@ -15,7 +15,7 @@ implements RouteAdapter
 
     addRoute(
         options: RouteOptions,
-        runner: (rc: RouteContext) => Promise<any>,
+        runner: (rc: RouteContextGeneric) => Promise<any>,
     ) {
         const createUserContext = this.userContextFactory(options);
         const { succeed, fail } = this.resultHandlerFactory(options);
@@ -55,13 +55,13 @@ implements RouteAdapter
         let factory: (
             request: FastifyRequest,
             logger: Loggable,
-        ) => UserContextBase;
+        ) => UserContextGeneric;
 
         if (options.createUserContext) {
             let create = options.createUserContext;
-            factory = (request, logger) => create(request.headers, request.query, logger);
+            factory = (request, logger) => create(request, logger);
         } else {
-            factory = () => ({ roles: Anonymous });
+            factory = (request, logger) => ({ roles: Anonymous, logger });
         }
 
         if (options.roles) {
@@ -89,23 +89,44 @@ implements RouteAdapter
 
         if (options.contentType) {
             let ct = options.contentType;
-            let base: OnResult = (result, _, reply) => ( reply.type(ct + '; charset=utf-8'), result );
+            let base: OnResult = (result, logger, reply) => {
+                if (reply.sent) {
+                    logger.warn('reply already sent');
+                } else {
+                    reply.type(ct + '; charset=utf-8');
+                }
+                return result;
+            }
 
             const format = formatFactory(options.contentType);
 
             succeed = after(base, (_, result, logger, reply) => {
-                logger.debug(new Result(result));
-                reply.code(200);
+                reply.code(reply.statusCode || 200);
                 reply.send(format.result(result));
+
+                logger.debug(new Result(result));
             })
 
             fail = after(base, (_, error, logger, reply) => {
-                const { statusCode, userFriendlyError } = defaultErrorHandler(error, logger);
+                const { statusCode, userFriendlyError } = defaultErrorHandler(error);
+
                 reply.code(statusCode);
                 reply.send(format.error(userFriendlyError));
+
+                if (statusCode < 500) {
+                    logger.debug(error);
+                } else {
+                    logger.crit(error);
+                }
             })
         } else {
             fail = (error, logger, reply) => {
+                if (error.httpCode < 500) {
+                    logger.debug(error);
+                } else {
+                    logger.crit(error);
+                }
+
                 if (reply.sent) return;
 
                 reply.code(error.httpCode || 500);
@@ -143,7 +164,8 @@ implements RouteAdapter
                 statusCode: reply.statusCode,
                 headers: reply.getHeaders(),
             }),
-            ...data])
+            ...data,
+        ])
     }
 
 }
@@ -171,5 +193,3 @@ const after = <F extends (...args: any) => any>(
     func: F,
     advice: (result: ReturnType<F>, ...args: Parameters<F>) => ReturnType<F>,
 ) => (...args: any) => advice(func(...args), ...args);
-
-export type FastifyRouteContext = RouteContext<FastifyRequest, FastifyReply>;

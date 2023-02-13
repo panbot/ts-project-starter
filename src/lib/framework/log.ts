@@ -62,6 +62,43 @@ export class ConsoleLogger implements Loggable {
     }
 }
 
+export class StandardLogger implements Loggable {
+
+    debug(...data: any[]) {
+        process.stdout.write(this.format('debug', data));
+    }
+
+    info(...data: any[]) {
+        process.stdout.write(this.format('info', data));
+    }
+
+    warn(...data: any[]) {
+        process.stderr.write(this.format('warn', data));
+        this.logTrace(data);
+    }
+
+    crit(...data: any[]) {
+        process.stderr.write(this.format('crit', data));
+        this.logTrace(data);
+    }
+
+    log(...data: any[]) {
+        process.stdout.write(this.format('log', data));
+    }
+
+    private format(level: string, data: any[]) {
+        return [
+            new Date().toLocaleString(),
+            level,
+            ...data.map(v => typeof v == 'object' ? JSON.stringify(v) : v),
+        ].join(' ') + '\n';
+    }
+
+    private logTrace(errors: any[]) {
+        errors.filter(e => e instanceof Error).forEach(e => console.error(e));
+    }
+}
+
 export function createLoggerProxy(
     logger: Loggable,
     change: (v: any[]) => any[],
@@ -86,5 +123,3 @@ export function createLoggerProxy(
         },
     })
 }
-
-

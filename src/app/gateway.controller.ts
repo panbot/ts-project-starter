@@ -1,9 +1,10 @@
-import { Roles } from "../app";
 import { Module, Route, Api, Tokens, Inject } from "../framework";
 import { ApiOptions } from "../lib/framework/api";
 import { ModuleApiLookup } from "../lib/framework/lookup";
 import { ModuleOptions } from "../lib/framework/module";
-import { ModuleConstructor, ApiConstructor, RouteContext } from "../lib/framework/types";
+import { ModuleConstructor, ApiConstructor } from "../lib/framework/types";
+import { RouteContext } from "./types";
+import { Roles } from "./security";
 
 export class GatewayController {
 

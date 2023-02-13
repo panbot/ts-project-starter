@@ -1,12 +1,13 @@
 import { createRegistryDecorator } from "./decorator";
 import { ApiConstructor, ControllerConstructor, ModuleConstructor } from "./types";
-import { Instantiator } from "../types";
+import { Constructor, Instantiator } from "../types";
 import { RunArgFactory, Runnable } from "../runnable";
 
 export class ModuleOptions {
     doc: string;
     apis: ApiConstructor[] = [];
     controllers: ControllerConstructor[] = [];
+    backgroundJobs: Constructor<Runnable>[] = [];
     dependencies: () => ModuleConstructor[] = () => [];
 }
 
@@ -20,6 +21,7 @@ export default function (
             doc: string,
             apis?: ApiConstructor[],
             controllers?: ControllerConstructor[],
+            backgroundJobs?: Constructor<Runnable>[],
             dependencies?: () => ModuleConstructor[],
         }
     >(
@@ -51,8 +53,11 @@ export default function (
         }
     }
 
+    const inited = new Set<ModuleConstructor>();
     const initModules = async (modules: ModuleConstructor[]) =>  {
         for (let ctor of resolveDependencies(modules)) {
+            if (inited.has(ctor)) continue;
+            inited.add(ctor);
             let module = instantiator(ctor);
             if (module.init) await module.init();
         }

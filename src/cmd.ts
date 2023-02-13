@@ -3,8 +3,8 @@ import './bootstrap';
 import { Api, Inject, Module, Tokens } from './framework';
 import { ModuleApiLookup } from './lib/framework/lookup';
 import { Runnable } from './lib/runnable';
-import { UserContext } from './app';
 import { Command, Superuser } from './lib/framework/roles';
+import { UserContext } from './app/security';
 
 export default class implements Runnable {
 

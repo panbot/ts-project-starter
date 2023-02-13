@@ -1,6 +1,7 @@
 import { Constructor } from "../types";
 import { Runnable } from "../runnable";
 import { Loggable } from "./log";
+import { Socket } from "net";
 
 export type Module = { init?: () => Promise<void> };
 export type ModuleConstructor = Constructor<Module>;
@@ -11,7 +12,7 @@ export type ApiArgParser = (
     v: unknown,
     context: {
         Type: Constructor<any>,
-        userContext: UserContextBase,
+        userContext: UserContextGeneric,
     },
 ) => any;
 
@@ -19,7 +20,7 @@ export type ApiArgValidator = (
     v: unknown,
     context: {
         Type: Constructor<any>,
-        userContext: UserContextBase,
+        userContext: UserContextGeneric,
     },
 ) => string | undefined | void | null;
 
@@ -32,8 +33,9 @@ export type ApiArgOptions = {
     validator: ApiArgValidator,
 };
 
-export type UserContextBase = {
+export type UserContextGeneric = {
     roles: number;
+    logger?: Loggable;
 }
 
 export type Controller = any;
@@ -52,26 +54,33 @@ export type RouteOptions = {
         'text/plain'
     ,
     createUserContext?: (
-        headers: any,
-        query: any,
+        request: {
+            headers: Record<string, any> | undefined,
+            socket: Socket,
+            query: any,
+        },
         logger: Loggable,
-    ) => UserContextBase,
+    ) => UserContextGeneric,
 };
 
-export type RouteContext<Request = unknown, Reply = unknown> = {
+export type RouteContextGeneric<
+    Request = unknown,
+    Reply = unknown,
+    UserContext extends UserContextGeneric = UserContextGeneric,
+> = {
     params: {
         [ key: string ]: any,
     },
     body: any,
     request: Request,
     reply: Reply,
-    userContext: UserContextBase,
+    userContext: UserContext,
     logger: Loggable,
 };
 
 export interface RouteAdapter {
     addRoute (
         options: RouteOptions,
-        runner: (rc: RouteContext) => Promise<any>,
+        runner: (rc: RouteContextGeneric) => Promise<any>,
     ): void;
 }

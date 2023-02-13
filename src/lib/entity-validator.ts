@@ -5,13 +5,14 @@ const EntityValidators = Symbol('entity validators');
 interface Validatable {
     name: string,
     value: any,
+    nullable: boolean,
     validate(v: unknown): string | undefined | null | void;
 }
 
 function reg(
     entityOrClass: Function | Object,
     propertyName: string,
-    validator: Validatable,
+    validatable: Validatable,
 ) {
     let entityClass: Function;
     if (typeof entityOrClass == 'function') {
@@ -28,13 +29,13 @@ function reg(
         map = Reflect.getMetadata(EntityValidators, entityClass);
     }
 
-    let validators = map.get(propertyName);
-    if (validators === undefined) {
-        validators = [];
-        map.set(propertyName, validators);
+    let validatables = map.get(propertyName);
+    if (validatables === undefined) {
+        validatables = [];
+        map.set(propertyName, validatables);
     }
 
-    validators.push(validator);
+    validatables.push(validatable);
 }
 
 export default {
@@ -47,7 +48,8 @@ export default {
         {
             name: 'NotBlank',
             value: true,
-            validate: v => v != null && v != 0 && v != '' ? null : msg,
+            nullable: false,
+            validate: v => v != null && v != '' ? null : msg,
         }
     ),
 
@@ -60,6 +62,7 @@ export default {
         {
             name: 'MinLength',
             value: limit,
+            nullable: true,
             validate: v => typeof v != 'string' || v.length >= limit ? null : msg(limit),
         }
     ),
@@ -73,6 +76,7 @@ export default {
         {
             name: 'MaxLength',
             value: limit,
+            nullable: true,
             validate: v => typeof v != 'string' || v.length <= limit ? null : msg(limit),
         }
     ),
@@ -86,6 +90,7 @@ export default {
         {
             name: 'RexExp',
             value: regex,
+            nullable: true,
             validate: v => regex.test(`${v}`) ? null : msg,
         }
     ),
@@ -99,6 +104,7 @@ export default {
         {
             name: 'LessThan',
             value: threshold,
+            nullable: true,
             validate: v => parseFloat(v as any) < threshold ? null : msg(threshold),
         }
     ),
@@ -112,6 +118,7 @@ export default {
         {
             name: 'GreaterThan',
             value: threshold,
+            nullable: true,
             validate: v => parseFloat(v as any) > threshold ? null : msg(threshold),
         }
     ),
@@ -125,6 +132,7 @@ export default {
         {
             name: 'NoLessThan',
             value: threshold,
+            nullable: true,
             validate: v => parseFloat(v as any) >= threshold ? null : msg(threshold),
         }
     ),
@@ -138,6 +146,7 @@ export default {
         {
             name: 'NoGreaterThan',
             value: threshold,
+            nullable: true,
             validate: v => parseFloat(v as any) >= threshold ? null : msg(threshold),
         }
     ),
@@ -151,6 +160,7 @@ export default {
         {
             name: 'ChooseOne',
             value: options,
+            nullable: true,
             validate: v => options.indexOf(v) >= 0 ? null : msg(options),
         }
     ),
@@ -158,6 +168,7 @@ export default {
     Custom: (
         name: string,
         value: any,
+        nullable: boolean,
         validate: (v: unknown) => string | undefined
     ) => (entity: any, propertyName: string) => reg(
         entity,
@@ -165,6 +176,7 @@ export default {
         {
             name,
             value,
+            nullable,
             validate,
         }
     ),
@@ -186,8 +198,10 @@ export default {
         if (!map) return ret;
 
         for (let k of fields || map.keys()) {
-            for (let validator of map.get(k) || []) {
-                let err = validator.validate(entity[k]);
+            for (let validatable of map.get(k) || []) {
+                let v = entity[k];
+                if (v == null && validatable.nullable) continue;
+                let err = validatable.validate(v);
                 if (err) {
                     ret.errors[k] = (ret.errors[k] || []).concat(err);
                     ret.invalid = true;
