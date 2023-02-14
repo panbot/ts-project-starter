@@ -26,7 +26,7 @@ export default (
         if (autoUpdate) setInterval(
             () => cache.renew(execute).catch(e => console.error(e)),
             secondsToLive * 1000,
-        );
+        ).unref();
     }
 
     return cache.renew(execute);
