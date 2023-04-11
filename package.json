@@ -21,7 +21,7 @@
     "fastify-cors": "^4.1.0",
     "mongodb": "^3.6.3",
     "reflect-metadata": "^0.1.13",
-    "typeorm": "^0.3.6"
+    "typeorm": "^0.3.14"
   },
   "devDependencies": {
     "@types/mongodb": "^3.6.3",
